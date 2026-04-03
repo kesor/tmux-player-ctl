@@ -16,24 +16,15 @@ import time
 from dataclasses import dataclass
 from typing import Optional, List
 
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Configuration
 # ─────────────────────────────────────────────────────────────────────────────
 
 class Config:
     UI_WIDTH = 72          # Width of the UI box
-    BAR_WIDTH = 40         # Width of progress/volume bars
+    UI_HEIGHT = 12         # Number of rows in the UI
     SEEK_SECONDS = 10
-    VOLUME_STEP = 0.1
-
-    # Theme colors (override via env vars)
-    ACCENT     = os.environ.get("TPCTL_ACCENT",     "\033[92m")
-    ACCENT_ALT = os.environ.get("TPCTL_ACCENT_ALT", "\033[93m")
-    DIM        = os.environ.get("TPCTL_DIM",        "\033[90m")
-    BAR_EMPTY  = os.environ.get("TPCTL_BAR_EMPTY",  "\033[90m")
-    BAR_FILL   = os.environ.get("TPCTL_BAR_FILL",   "\033[97m")
-    BORDER     = os.environ.get("TPCTL_BORDER",     "\033[37m")
-    RESET      = "\033[0m"
     # Background: 24-bit RGB like "0;0;0" for black
     BG = os.environ.get("TPCTL_BG", "")  # e.g., "0;0;0" for black
 
@@ -41,6 +32,74 @@ class Config:
 current_player: str = ""
 available_players: List[str] = []
 current_player_idx: int = -1
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Icons
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Unicode symbols (VS15 \uFE0E for text presentation)
+ICONS = {
+    # Status
+    "play":       "\u23f5\ufe0e",    # ▶
+    "record":     "\u23fa\ufe0e",    # ⏺ 
+    "pause":      "\u23f8\ufe0e",    # ⏸
+    "stop":       "\u25a0\ufe0e",    # ■
+    "play-pause": "\u23ef\ufe0e",    # ⏯
+    # Navigation
+    "tab":        "\u21e5\ufe0e",    # ⇥ tab
+    "prev":       "\u25c0\ufe0e",    # ◀
+    "seek-left":  "\u23ea\ufe0e",    # ⏪
+    "seek-right": "\u23e9\ufe0e",    # ⏩
+    "next":       "\u23ed\ufe0e",    # ⏭
+    "skip-start": "\u23ee\ufe0e",    # ⏮
+    "skip-end":   "\u23ed\ufe0e",    # ⏭ (same as next)
+    "eject":      "\u23cf\ufe0e",    # ⏏
+    # Volume
+    "vol-muted":  "\U0001f507\ufe0e", # 🔇
+    "vol-low":    "\U0001f508\ufe0e", # 🔈
+    "vol-med":    "\U0001f509\ufe0e", # 🔉
+    "vol-high":   "\U0001f50a\ufe0e", # 🔊
+    # Playlist
+    "shuffle":    "\U0001f500\ufe0e", # 🔀
+    "repeat":     "\U0001f501\ufe0e", # 🔁
+    "repeat-one": "\U0001f502\ufe0e", # 🔂
+}
+
+# Icon widths (visual cell width - use 2 for all for consistency)
+ICON_WIDTHS = {
+    "play": 2, "pause": 2, "stop": 2, "play-pause": 2,
+    "tab": 2, "prev": 2, "seek-left": 2, "seek-right": 2,
+    "next": 2, "skip-start": 2, "skip-end": 2,
+    "eject": 2,
+    "vol-muted": 2, "vol-low": 2, "vol-med": 2, "vol-high": 2,
+    "shuffle": 2, "repeat": 2, "repeat-one": 2,
+}
+
+DEFAULT_ICON_WIDTH = 2
+
+
+def icon(name: str, width: int = None) -> str:
+    """Return an icon wrapped in an overlay."""
+    if name not in ICONS:
+        symbol = "?"
+    else:
+        symbol = ICONS[name]
+    effective_width = width if width is not None else ICON_WIDTHS.get(name, DEFAULT_ICON_WIDTH)
+    return overlay(symbol, effective_width)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Color helpers
+# ─────────────────────────────────────────────────────────────────────────────
+
+def colorize(text: str, color: str) -> str:
+    """Add ANSI color to text, then reset."""
+    return f"{color}{text}\033[0m"
+
+
+def overlay(content: str, width: int = 2) -> str:
+    """Wrap content in a fixed-width overlay slot."""
+    return f"{' ' * width}\x1b7\x1b[{width}D{content}\x1b[0m\x1b8"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # State
@@ -55,18 +114,61 @@ class PlayerState:
     album: str = ""
     position: float = 0.0
     length: float = 0.0
-    volume: float = 0.0
+    volume: int = 0
     loop: str = "None"
     shuffle: str = "false"
     dirty: bool = True
 
 state = PlayerState()
 
-# Delimiter for metadata parsing (||| almost never appears in user content)
-METADATA_FORMAT = "|||".join([
-    "{{playerName}}", "{{status}}", "{{title}}", "{{artist}}",
-    "{{album}}", "{{position}}", "{{mpris:length}}", "{{volume}}",
-    "{{loop}}", "{{shuffle}}",
+# Format for metadata parsing (newline separator - safe from user content)
+METADATA_FORMAT = "\n".join([
+    # Basic info
+    "{{playerName}}",
+    "{{status}}",
+    "{{title}}",
+    "{{artist}}",
+    "{{album}}",
+    # Track details
+    "{{albumArtist}}",
+    "{{trackNumber}}",
+    "{{discNumber}}",
+    "{{genre}}",
+    "{{xesam:explicit}}",
+    "{{subtitle}}",
+    "{{asText}}",
+    # People
+    "{{composer}}",
+    "{{lyricist}}",
+    "{{conductor}}",
+    "{{performer}}",
+    "{{arranger}}",
+    # Dates & IDs
+    "{{releaseDate}}",
+    "{{contentCreated}}",
+    "{{musicBrainzTrackId}}",
+    "{{musicBrainzAlbumId}}",
+    "{{musicBrainzArtistIds}}",
+    # Other
+    "{{comment}}",
+    "{{mood}}",
+    "{{url}}",
+    "{{userHomePage}}",
+    "{{useCount}}",
+    "{{autoRating}}",
+    "{{audioBPM}}",
+    "{{language}}",
+    "{{lyrics}}",
+    # Playback
+    "{{position}}",
+    "{{mpris:length}}",
+    "{{volume}}",
+    "{{loopStatus}}",
+    "{{loop}}",
+    "{{shuffle}}",
+    # Extra
+    "{{mpris:artUrl}}",
+    "{{mpris:trackid}}",
 ])
 
 # Debounce follower updates after commands (in seconds)
@@ -131,7 +233,55 @@ def cleanup_proc(proc: Optional[subprocess.Popen]) -> None:
         processes.remove(proc)
 
 # ─────────────────────────────────────────────────────────────────────────────
-# playerctl helpers
+# UI Rendering
+# ─────────────────────────────────────────────────────────────────────────────
+
+def render_ui():
+    """Render the full UI to stdout."""
+    # Move cursor to top of UI area
+    move_cursor(1, 1)
+    
+    # Build rows dynamically - skip None (missing metadata)
+    info_rows = [
+        album_row(),
+        track_row(),
+        artist_row(),
+    ]
+    visible_info = [r for r in info_rows if r is not None]
+    
+    # Build all rows
+    rows = [
+        border_top(),
+        header_row(),
+        border_mid(),
+    ]
+    rows.extend(visible_info)
+    rows.extend([
+        border_mid(),
+        progress_row(),
+        volume_row(),
+        border_mid(),
+        toolbar_row(),
+        border_bot(),
+    ])
+    
+    # Calculate dynamic UI height
+    ui_height = len(rows)
+    
+    # Print rows with clears to remove old content below
+    for row_text in rows:
+        sys.stdout.write(row_text)
+        # Clear to end of line
+        sys.stdout.write("\033[K\n")
+    
+    # Clear remaining lines from old content
+    for _ in range(ui_height, Config.UI_HEIGHT):
+        sys.stdout.write("\033[K\n")
+    
+    # Move cursor back to top for next refresh
+    move_cursor(1, 1)
+    sys.stdout.flush()
+    state.dirty = False
 # ─────────────────────────────────────────────────────────────────────────────
 
 def get_available_players() -> List[str]:
@@ -150,15 +300,6 @@ def get_available_players() -> List[str]:
 
 def player_args() -> List[str]:
     return ["-p", current_player] if current_player else []
-
-def short_player_name(name: str) -> str:
-    """Shorten player name by removing instance ID suffix."""
-    if not name:
-        return ""
-    # Remove common suffixes like .instance12345
-    if ".instance" in name:
-        return name.split(".instance")[0]
-    return name
 
 def reset_state():
     """Reset all state fields."""
@@ -201,9 +342,11 @@ def switch_player(pos_proc, meta_proc) -> tuple:
         data = parse_metadata(result)
         update_state_from_metadata(data)
     else:
-        reset_state()
+        # Player exists but has no metadata - still show the player name
+        state.player = current_player
+        state.status = "Stopped"
+        state.dirty = True
 
-    state.dirty = True
     return new_pos_proc, new_meta_proc
 
 def run_playerctl(*args) -> str:
@@ -224,8 +367,9 @@ def run_playerctl(*args) -> str:
 def start_position_follower() -> Optional[subprocess.Popen]:
     """Start background position follower."""
     try:
+        # Use --format '{{position}}' with --follow to get continuous updates
         proc = subprocess.Popen(
-            ["playerctl"] + player_args() + ["--follow", "position"],
+            ["playerctl"] + player_args() + ["--format", "{{position}}", "--follow", "position"],
             stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL
         )
@@ -247,26 +391,319 @@ def start_metadata_follower() -> Optional[subprocess.Popen]:
     except OSError:
         return None
 
+def _parse_volume(raw: str) -> int:
+    """Convert volume float (0.0-1.0) to int (0-100)."""
+    if not raw:
+        return 0
+    try:
+        vol = float(raw)
+        vol = max(0.0, min(1.0, vol))  # clamp
+        return round(vol * 100)
+    except (ValueError, TypeError):
+        return 0
+
+
 def parse_metadata(raw: str) -> dict:
-    """Parse metadata using ||| delimiter."""
-    parts = raw.split("|||")
+    """Parse metadata using newline delimiter."""
+    parts = raw.split("\n")
     if len(parts) < 10:
         return {}
     try:
         return {
+            # Basic info
             "player": parts[0] or "",
             "status": parts[1] or "",
             "title": parts[2] or "",
             "artist": parts[3] or "",
             "album": parts[4] or "",
-            "position": float(parts[5]) / 1_000_000 if parts[5] else 0.0,
-            "length": float(parts[6]) / 1_000_000 if parts[6] else 0.0,
-            "volume": float(parts[7]) if parts[7] else 0.0,
-            "loop": parts[8] or "None",
-            "shuffle": parts[9] or "false",
+            # Track details
+            "albumArtist": parts[5] or "",
+            "trackNumber": parts[6] or "",
+            "discNumber": parts[7] or "",
+            "genre": parts[8] or "",
+            "explicit": parts[9] or "false",
+            "subtitle": parts[10] or "",
+            "asText": parts[11] or "",
+            # People
+            "composer": parts[12] or "",
+            "lyricist": parts[13] or "",
+            "conductor": parts[14] or "",
+            "performer": parts[15] or "",
+            "arranger": parts[16] or "",
+            # Dates & IDs
+            "releaseDate": parts[17] or "",
+            "contentCreated": parts[18] or "",
+            "musicBrainzTrackId": parts[19] or "",
+            "musicBrainzAlbumId": parts[20] or "",
+            "musicBrainzArtistIds": parts[21] or "",
+            # Other
+            "comment": parts[22] or "",
+            "mood": parts[23] or "",
+            "url": parts[24] or "",
+            "userHomePage": parts[25] or "",
+            "useCount": parts[26] or "",
+            "autoRating": parts[27] or "",
+            "audioBPM": parts[28] or "",
+            "language": parts[29] or "",
+            "lyrics": parts[30] or "",
+            # Playback
+            "position": float(parts[31]) / 1_000_000 if parts[31] else 0.0,
+            "length": float(parts[32]) / 1_000_000 if parts[32] else 0.0,
+            "volume": _parse_volume(parts[33]),
+            "loopStatus": parts[34] or "None",
+            "loop": parts[35] or "None",
+            "shuffle": parts[36] or "false",
+            # Extra
+            "artUrl": parts[37] or "",
+            "trackid": parts[38] or "",
         }
     except (ValueError, IndexError):
         return {}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Theme Configuration
+# ─────────────────────────────────────────────────────────────────────────────
+
+class Theme:
+    # Catppuccin Mocha palette (24-bit RGB: \033[38;2;R;G;Bm)
+    
+    # Status colors
+    PLAYING = os.environ.get("TPCTL_PLAYING", "\033[38;2;166;227;161m")   # green
+    PAUSED = os.environ.get("TPCTL_PAUSED", "\033[38;2;249;226;175m")   # yellow
+    STOPPED = os.environ.get("TPCTL_STOPPED", "\033[38;2;108;112;134m")   # overlay0
+    RECORDING = os.environ.get("TPCTL_RECORDING", "\033[38;2;243;139;168m")  # red
+    
+    # Key hints
+    KEY_HINT = os.environ.get("TPCTL_KEY_HINT", "\033[38;2;137;180;250m")  # blue
+    
+    # Borders & labels
+    BORDER = os.environ.get("TPCTL_BORDER", "\033[38;2;108;112;134m")   # overlay0
+    DIM = os.environ.get("TPCTL_DIM", "\033[38;2;108;112;134m")  # overlay0
+    
+    # Progress bar
+    PROGRESS_FILL = os.environ.get("TPCTL_PROGRESS_FILL", "\033[38;2;137;180;250m")  # blue
+    PROGRESS_EMPTY = os.environ.get("TPCTL_PROGRESS_EMPTY", "\033[38;2;108;112;134m")  # overlay0
+    
+    # Volume bar (gradient: red → yellow → green)
+    VOL_MUTED = os.environ.get("TPCTL_VOL_MUTED", "\033[38;2;243;139;168m")    # red
+    VOL_LOW = os.environ.get("TPCTL_VOL_LOW", "\033[38;2;249;226;175m")     # yellow
+    VOL_MED = os.environ.get("TPCTL_VOL_MED", "\033[38;2;166;227;161m")     # green
+    VOL_HIGH = os.environ.get("TPCTL_VOL_HIGH", "\033[38;2;166;227;161m")    # bright green
+    VOL_EMPTY = os.environ.get("TPCTL_VOL_EMPTY", "\033[38;2;108;112;134m")  # overlay0
+    
+    RESET = "\033[0m"
+
+
+def status_color(status: str) -> str:
+    """Get color for status."""
+    colors = {
+        "Playing": Theme.PLAYING,
+        "Paused": Theme.PAUSED,
+        "Stopped": Theme.STOPPED,
+        "Recording": Theme.RECORDING,
+    }
+    return colors.get(status, Theme.STOPPED)
+
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# UI Row Builders
+# ─────────────────────────────────────────────────────────────────────────────
+
+def border_top() -> str:
+    """Top border: ┌ followed by ─ repeated, then ┐"""
+    return f"{Theme.BORDER}┌{"─" * (Config.UI_WIDTH - 2)}┐{Theme.RESET}"
+
+def border_mid() -> str:
+    """Middle border: ├ followed by ─ repeated, then ┤"""
+    return f"{Theme.BORDER}├{"─" * (Config.UI_WIDTH - 2)}┤{Theme.RESET}"
+
+def border_bot() -> str:
+    """Bottom border: └ followed by ─ repeated, then ┘"""
+    return f"{Theme.BORDER}└{"─" * (Config.UI_WIDTH - 2)}┘{Theme.RESET}"
+
+
+# Width constants for header row
+STATUS_WIDTH = 12  # 2 overlay + 1 space + 9 max "recording"
+SWITCH_WIDTH = 8   # 2 overlay + 1 space + 6 "switch"
+GAP = 2             # gap between slots
+
+
+def time_width() -> int:
+    """Width of formatted time (based on length)."""
+    if state.length > 0:
+        return len(format_time(state.length))
+    return 5  # minimum "0:00"
+
+
+def _status_icon(status: str) -> str:
+    """Get icon name for status."""
+    icons = {
+        "Playing": "play",
+        "Paused": "pause",
+        "Stopped": "stop",
+        "Recording": "record",
+    }
+    return icons.get(status, "stop")
+
+
+
+def _format_player_name(player: str) -> str:
+    """Format player name: strip .instanceN suffix."""
+    if not player:
+        return ""
+    if ".instance" in player:
+        return player.split(".instance")[0]
+    return player
+
+
+def header_row() -> str:
+    """Header row with status, player name, and switch."""
+    # Calculate widths
+    inner = Config.UI_WIDTH - 4
+    player_width = inner - STATUS_WIDTH - SWITCH_WIDTH - 2  # -2 for row() gaps
+
+    # Status part: 12 visible chars
+    status_icon = icon(_status_icon(state.status))
+    if state.status == "Playing":
+        status_text = colorize(f"{status_icon} playing  ", status_color(state.status))
+    elif state.status == "Paused":
+        status_text = colorize(f"{status_icon} paused   ", status_color(state.status))
+    elif state.status == "Stopped":
+        status_text = colorize(f"{status_icon} stopped  ", status_color(state.status))
+    elif state.status == "Recording":
+        status_text = colorize(f"{status_icon} recording", status_color(state.status))
+    else:
+        status_text = colorize(f"{status_icon} {state.status.lower()}", status_color(state.status))
+
+    # Player part - extra space padding, truncate if needed
+    player_name = _format_player_name(state.player)
+    if len(player_name) > player_width:
+        player_name = truncate(player_name, player_width)
+    player_name = f" {player_name} "  # extra space padding
+
+    # Switch part: icon + space + "switch" (no overlay, just inline icon)
+    if len(available_players) > 1:
+        switch_text = f"{colorize(ICONS['tab'], Theme.KEY_HINT)} switch"
+    else:
+        switch_text = ""
+
+    return row(
+        (status_text, STATUS_WIDTH, STATUS_WIDTH, '<'),
+        (player_name, player_width, '^'),
+        (switch_text, SWITCH_WIDTH, '>'),
+    )
+
+
+def _info_row(label: str, value: str):
+    """Info row: label (7) + value (remaining). Returns None if value empty."""
+    if not value:
+        return None
+    inner = Config.UI_WIDTH - 4
+    lw, gap = 7, 1
+    vw = inner - lw - gap
+    label_colored = colorize(label.rjust(lw), Theme.DIM)
+    return row((label_colored, lw, '>'), (truncate(value, vw), vw, '<'))
+
+
+def album_row():
+    return _info_row("Album:", state.album)
+
+
+def track_row():
+    return _info_row("Track:", state.title)
+
+
+def artist_row():
+    return _info_row("Artist:", state.artist)
+
+def progress_row():
+    """Progress row: time + bar + time."""
+    inner = Config.UI_WIDTH - 4
+    start = format_time(state.position)  # elapsed time: MM:SS
+    end = format_time_total(state.length)  # total time: shows hours if needed
+    bar_w = inner - len(start) - 1 - 1 - len(end)  # inner - start - gap - gap - end
+    bar = progress_bar(state.position, state.length, bar_w)
+    # Save time widths for volume row alignment
+    state._start_time_w = len(start)
+    state._end_time_w = len(end)
+    return row(
+        (start, len(start), '<'),
+        (bar, bar_w, '^'),
+        (end, len(end), '>')
+    )
+
+def _volume_icon(vol: int) -> str:
+    """Get icon name for volume level (vol is 0-100)."""
+    if vol == 0:
+        return "vol-muted"
+    elif vol < 33:
+        return "vol-low"
+    elif vol < 66:
+        return "vol-med"
+    else:
+        return "vol-high"
+
+
+def tool(icon_name: str, text: str, highlight: str) -> str:
+    """Format a toolbar tool: icon + text with specified char(s) highlighted."""
+    icon_part = icon(icon_name)
+    highlighted = colorize(highlight, Theme.KEY_HINT)
+    return f"{icon_part}{text.replace(highlight, highlighted, 1)}"
+
+
+# Known widths for toolbar tools (overlay(2) + icon(1) + space(1) + text)
+TOOL_SEEK = 7    # "←→ seek"
+TOOL_VOL = 9      # "↑↓ volume"
+TOOL_MUTE = 4     # "mute"
+TOOL_PAUSE = 8    # "⏸ pause" 
+TOOL_PREV = 7     # "⏮  prev"
+TOOL_NEXT = 7     # "⏭  next"
+TOOL_CLOSE = 11   # "esc/q close"
+
+
+def toolbar_row():
+    """Toolbar with controls."""
+    inner = Config.UI_WIDTH - 4  # 68
+    
+    # Build each tool
+    seek = f"{colorize('←→', Theme.KEY_HINT)} seek"
+    vol = f"{colorize('↑↓', Theme.KEY_HINT)} volume"
+    mute = f"{colorize('m', Theme.KEY_HINT)}ute"
+    
+    if state.status == "Playing":
+        play_pause = tool("pause", "␣pause", '␣')
+    else:
+        play_pause = tool("play", "␣ play", '␣')
+    
+    prev = tool("skip-start", " prev", "p")
+    next_ = tool("skip-end", " next", "n")
+    close = f"{colorize('esc/q', Theme.KEY_HINT)} close"
+    
+    # Combine all tools with 2-space separator
+    tools = " " + "  ".join([seek, vol, mute, play_pause, prev, next_, close])
+    
+    # Known widths: seek(7) + vol(9) + mute(4) + pause(7) + prev(8) + next(8) + close(11)
+    # + 6 separators ("  ") + leading space = 67
+    total_width = TOOL_SEEK + TOOL_VOL + TOOL_MUTE + TOOL_PAUSE + TOOL_PREV + TOOL_NEXT + TOOL_CLOSE + 6*2 + 1
+    return row((tools, inner, total_width, '^'))
+
+
+def volume_row():
+    """Volume row: icon + bar + percentage."""
+    vol_pct = state.volume  # already int 0-100
+    pct_text = f"{vol_pct}%"
+    start_w = getattr(state, '_start_time_w', None) or time_width()
+    end_w = getattr(state, '_end_time_w', None) or time_width()
+    pct_text = pct_text.rjust(end_w)
+    vol_icon = icon(_volume_icon(vol_pct), start_w)
+    bar_w = Config.UI_WIDTH - 4 - start_w - 1 - 1 - end_w
+    bar = volume_bar(vol_pct, bar_w)
+    return row(
+        (vol_icon, start_w, '<'),
+        (bar, bar_w, '^'),
+        (pct_text, end_w, '>')
+    )
 
 def update_state_from_metadata(data: dict):
     """Update state from parsed metadata dict."""
@@ -298,10 +735,50 @@ def move_cursor(row: int, col: int):
 import re
 
 ANSI_PATTERN = re.compile(r'\x1b\[[0-9;]*m')
+CURSOR_MOVE_PATTERN = re.compile(r'\x1b\[[0-9;]*[DCuCBAH]')
 
-def visible_len(text: str) -> int:
-    """Return visible length of text, stripping ANSI escape codes."""
-    return len(ANSI_PATTERN.sub('', text))
+def row(*slots) -> str:
+    """Build a content row from slots.
+    
+    Each slot is (content, slot_width, alignment) or
+    (content, slot_width, content_width, alignment) where content_width
+    is the visible length when content has ANSI codes.
+    """
+    # Filter out None slots, normalize to (content, width, content_width, alignment)
+    valid_slots = []
+    for s in slots:
+        if s is None:
+            continue
+        if len(s) == 3:
+            content, width, alignment = s
+            content_width = None  # use len(content)
+        else:
+            content, width, content_width, alignment = s
+        valid_slots.append((content, width, content_width, alignment))
+    
+    if not valid_slots:
+        return "│ │"
+    
+    parts = []
+    for i, (content, width, content_width, alignment) in enumerate(valid_slots):
+        actual_len = content_width if content_width is not None else len(content)
+        if actual_len < width:
+            pad_len = width - actual_len
+            if alignment == '>':
+                content = " " * pad_len + content
+            elif alignment == '^':
+                left_len = pad_len // 2
+                right_len = pad_len - left_len
+                content = " " * left_len + content + " " * right_len
+            else:  # '<' or default
+                content = content + " " * pad_len
+        parts.append(content)
+        if i < len(valid_slots) - 1:
+            parts.append(" ")  # 1-space gap
+    
+    content_str = "".join(parts)
+    
+    return f"{Theme.BORDER}│{Theme.RESET} {content_str} {Theme.BORDER}│{Theme.RESET}"
 
 def truncate(text: str, width: int) -> str:
     """Truncate text to visible width, add ellipsis if needed."""
@@ -329,11 +806,23 @@ def truncate(text: str, width: int) -> str:
     return text
 
 def format_time(seconds: float) -> str:
-    """Format seconds as MM:SS."""
+    """Format seconds as MM:SS (for elapsed time)."""
     if seconds <= 0:
         return "0:00"
     minutes = int(seconds // 60)
     secs = int(seconds % 60)
+    return f"{minutes}:{secs:02d}"
+
+
+def format_time_total(seconds: float) -> str:
+    """Format total track length, shows hours for long tracks."""
+    if seconds <= 0:
+        return "0:00"
+    hours = int(seconds // 3600)
+    minutes = int((seconds % 3600) // 60)
+    secs = int(seconds % 60)
+    if hours > 0:
+        return f"{hours}:{minutes:02d}:{secs:02d}"
     return f"{minutes}:{secs:02d}"
 
 def progress_bar(current: float, total: float, width: int) -> str:
@@ -341,165 +830,22 @@ def progress_bar(current: float, total: float, width: int) -> str:
         return "─" * width
     filled = min(int((current / total) * width), width)
     empty = width - filled
-    return Config.BAR_FILL + "━" * filled + Config.BAR_EMPTY + "━" * empty + Config.RESET
+    return Theme.PROGRESS_FILL + "━" * filled + Theme.PROGRESS_EMPTY + "━" * empty + Theme.RESET
 
-def volume_bar(volume: float, width: int) -> str:
-    filled = min(int(volume * width), width)
+def volume_bar(volume: int, width: int) -> str:
+    """Build volume bar (volume is 0-100)."""
+    filled = min(int(volume * width // 100), width)
     empty = width - filled
-    return Config.BAR_FILL + "█" * filled + Config.BAR_EMPTY + "░" * empty + Config.RESET
-
-def status_icon(status: str) -> str:
-    if status == "Playing":
-        return "▶"  # Play symbol
-    if status == "Paused":
-        return "⏸"  # Pause symbol
-    return "■"
-
-def volume_icon(volume: float) -> str:
-    """Return volume icon based on percentage."""
-    pct = int(volume * 100)
-    if pct == 0:
-        return "🔇"  # Muted
-    if pct <= 33:
-        return "🔈"  # Low
-    if pct <= 66:
-        return "🔉"  # Medium
-    return "🔊"  # Loud
-
-def status_color(status: str) -> str:
-    if status == "Playing":
-        return Config.ACCENT
-    if status == "Paused":
-        return Config.ACCENT_ALT
-    return Config.DIM
-
-def render_ui():
-    try:
-        term_size = os.get_terminal_size()
-    except OSError:
-        term_size = os.terminal_size((80, 24))
-
-    # Box layout: 11 rows
-    # ┌────────────────────────────────────────────────────────────────────┐
-    # │ ▶ playing                                                  [q] close│
-    # ├────────────────────────────────────────────────────────────────────┤
-    # │ Album:  Möbius Front '83...                                       │
-    # │ Track:  Precision Strike                                           │
-    # │ Artist: Matthew S Burns                                            │
-    # ├────────────────────────────────────────────────────────────────────┤
-    # │ 2:05 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 7:17│
-    # │ 🔈   ████████████████████████████████████████████████████░░░░░░  89%│
-    # ├────────────────────────────────────────────────────────────────────┤
-    # │      ←→ seek  ↑↓ vol  [b]prev  [n]next  [␣]pause   [⇥] spotifyd   │
-    # └────────────────────────────────────────────────────────────────────┘
-    num_rows = 12
-    start_row = max(1, (term_size.lines - num_rows) // 2)
-    start_col = max(1, (term_size.columns - Config.UI_WIDTH) // 2)
-
-    inner = Config.UI_WIDTH - 4
-    dash_count = Config.UI_WIDTH - 2
-
-    # Borders
-    border_top = f"{Config.BORDER}┌{'─' * dash_count}┐{Config.RESET}"
-    border_bot = f"{Config.BORDER}└{'─' * dash_count}┘{Config.RESET}"
-    border_mid = f"{Config.BORDER}├{'─' * dash_count}┤{Config.RESET}"
-
-    # Header
-    icon = status_icon(state.status)
-    color = status_color(state.status)
-    status_left = f"{icon} {state.status.lower()}"
-    status_right = "[q] close"
-    gap = inner - visible_len(status_left) - visible_len(status_right)
-    header = f"│ {color}{status_left}{' ' * gap}{Config.DIM}{status_right}{Config.RESET} │"
-
-    # Track info - Album, Track, Artist order (album first for alignment)
-    LABEL_WIDTH = 8  # "Album:  ", "Track:  ", "Artist: "
-    value_width = inner - LABEL_WIDTH
-
-    album = truncate(state.album, value_width) or "Unknown Album"
-    title = truncate(state.title, value_width) or "Unknown Title"
-    artist = truncate(state.artist, value_width) or "Unknown Artist"
-
-    album_row = f"│ {Config.DIM}Album:{Config.RESET}  {album:<{value_width}} │"
-    title_row = f"│ {Config.DIM}Track:{Config.RESET}  {title:<{value_width}} │"
-    artist_row = f"│ {Config.DIM}Artist:{Config.RESET} {artist:<{value_width}} │"
-
-    # Bar width for both progress and volume
-    BAR_WIDTH = inner - 10  # 5 chars left time + 1 space + bar + 1 space + 5 chars right time - 3 = inner - 2
-    BAR_WIDTH = max(BAR_WIDTH, 10)
-
-    # Progress bar: "3:12  ██████████████░░░░  5:27" (no leading space, row adds it)
-    pos_str = format_time(state.position)
-    len_str = format_time(state.length)
-    prog = progress_bar(state.position, state.length, BAR_WIDTH)
-    prog_text = f"{pos_str} {prog} {len_str}"
-
-    # Volume bar: align bar start with progress bar's time start
-    # Progress: " 0:07 █████ 6:27 " (6 visible before bar)
-    # Volume: " 🔊    █████  89% " (emoji ~2 + 4 spaces ≈ 6 visible before bar)
-    vol_pct = round(state.volume * 100)  # round, not int, to avoid truncation errors
-    if vol_pct == 100:
-        vol_pct_str = "100"
-    elif vol_pct >= 10:
-        vol_pct_str = f"{vol_pct}%"
+    # Color based on volume level (volume is already 0-100)
+    if volume == 0:
+        fill_color = Theme.VOL_MUTED
+    elif volume <= 33:
+        fill_color = Theme.VOL_LOW
+    elif volume <= 66:
+        fill_color = Theme.VOL_MED
     else:
-        vol_pct_str = f" {vol_pct}%"  # pad single digit
-    vol_icon = volume_icon(state.volume)
-    vol = volume_bar(state.volume, BAR_WIDTH)
-    vol_text = f"{vol_icon}   {vol}  {vol_pct_str}"  # no leading space, row adds it
-
-    prog_row = f"│ {Config.DIM}{prog_text:<{inner}}{Config.RESET} │"
-    vol_row = f"│ {Config.DIM}{vol_text:<{inner}}{Config.RESET} │"
-
-    # Controls row - CENTERED
-    short_name = short_player_name(current_player) if current_player else "no player"
-    pause_text = "pause" if state.status == "Playing" else " play"  # " play" = 5 chars same as "pause"
-    player_text = f"[⇥] {short_name}" if available_players else "no player"
-    ctrl_parts = [
-        "←→ seek",
-        "↑↓[m]vol",
-        "[b]prev",
-        "[n]next",
-        f"[␣]{pause_text}",
-        player_text,
-    ]
-    ctrl_text = "  ".join(ctrl_parts)
-
-    # Center the controls text
-    ctrl_len = visible_len(ctrl_text)
-    if ctrl_len < inner:
-        padding = (inner - ctrl_len) // 2
-        ctrl_text = " " * padding + ctrl_text
-
-    ctrl_row = f"│ {Config.DIM}{ctrl_text:<{inner}}{Config.RESET} │"
-
-    lines = [
-        border_top,
-        header,
-        border_mid,
-        album_row,
-        title_row,
-        artist_row,
-        border_mid,
-        prog_row,
-        vol_row,
-        border_mid,
-        ctrl_row,
-        border_bot,
-    ]
-
-    # Write all lines
-    sys.stdout.write("\033[J")
-    for i, line in enumerate(lines):
-        move_cursor(start_row + i, start_col)
-        sys.stdout.write(line)
-    sys.stdout.flush()
-
-    state.dirty = False
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Keyboard handling
-# ─────────────────────────────────────────────────────────────────────────────
+        fill_color = Theme.VOL_HIGH
+    return f"{fill_color}{'█' * filled}{Theme.VOL_EMPTY}{'░' * empty}{Theme.RESET}"
 
 def handle_key(key: str, seq: str = "") -> None:
     global last_command_time
@@ -510,33 +856,20 @@ def handle_key(key: str, seq: str = "") -> None:
 
     if key == '\x1b':
         if seq == '[A':
-            # Volume up: optimistic update, work with integer 0-100
-            vol_pct = round(state.volume * 100)  # round, not int, to avoid truncation errors
-            vol_pct = min(100, vol_pct + 5)
-            # Format volume correctly (0.0 to 1.0)
-            if vol_pct >= 100:
-                vol_arg = "1.0"
-            elif vol_pct < 10:
-                vol_arg = f"0.0{vol_pct}"
-            else:
-                vol_arg = f"0.{vol_pct}"
+            # Volume up: volume is int 0-100
+            vol = min(100, state.volume + 5)
+            # Format volume as float for playerctl
+            vol_arg = f"{vol / 100:.2f}"
             run_playerctl("volume", vol_arg)
-            # Immediately show our cached value
-            state.volume = vol_pct / 100.0
+            state.volume = vol
             last_command_time = time.time()
         elif seq == '[B':
-            # Volume down: optimistic update, work with integer 0-100
-            vol_pct = round(state.volume * 100)  # round, not int, to avoid truncation errors
-            vol_pct = max(0, vol_pct - 5)
-            if vol_pct >= 100:
-                vol_arg = "1.0"
-            elif vol_pct < 10:
-                vol_arg = f"0.0{vol_pct}"
-            else:
-                vol_arg = f"0.{vol_pct}"
+            # Volume down: volume is int 0-100
+            vol = max(0, state.volume - 5)
+            # Format volume as float for playerctl
+            vol_arg = f"{vol / 100:.2f}"
             run_playerctl("volume", vol_arg)
-            # Immediately show our cached value
-            state.volume = vol_pct / 100.0
+            state.volume = vol
             last_command_time = time.time()
         elif seq == '[C':
             # Seek forward: optimistic update
@@ -575,13 +908,13 @@ def handle_key(key: str, seq: str = "") -> None:
         else:
             run_playerctl("loop", "None")
     elif key in {'m', 'M'}:
-        # Mute/unmute
+        # Mute/unmute (volume is int 0-100)
         if state.volume > 0:
-            run_playerctl("volume", "0")
-            state.volume = 0.0
+            run_playerctl("volume", "0.0")
+            state.volume = 0
         else:
-            run_playerctl("volume", "0.5")
-            state.volume = 0.5
+            run_playerctl("volume", "0.50")
+            state.volume = 50
     else:
         return
 
@@ -605,16 +938,31 @@ def main():
 
     try:
         available_players = get_available_players()
+        
+        # Try to find a player that responds to metadata queries
+        # If no player works, we'll still show the first one as "stopped"
+        current_player = ""
         if available_players:
-            current_player_idx = 0
-            current_player = available_players[0]
-
-        if current_player:
-            initial = run_playerctl("--format", METADATA_FORMAT, "metadata")
-            if initial:
-                update_state_from_metadata(parse_metadata(initial))
+            for idx, player in enumerate(available_players):
+                # Temporarily use this player to try metadata query
+                _saved_player = current_player
+                current_player = player
+                initial = run_playerctl("--format", METADATA_FORMAT, "metadata")
+                if initial:
+                    current_player_idx = idx
+                    update_state_from_metadata(parse_metadata(initial))
+                    break
+                current_player = _saved_player
+            
+            # If no player responded, use the first one anyway
+            if not current_player and available_players:
+                current_player_idx = 0
+                current_player = available_players[0]
+                state.player = current_player
+                state.status = "Stopped"
+                state.dirty = True
         else:
-            state.status = "No player"
+            state.status = "No MPRIS player"
             state.dirty = True
 
         pos_proc = start_position_follower() if current_player else None
@@ -662,13 +1010,12 @@ def main():
                 try:
                     ch = os.read(pos_proc.stdout.fileno(), 64)
                     if ch:
-                        # May have multiple lines, take last
-                        lines = ch.split(b'\n')
-                        if lines[-1]:
-                            last = lines[-1].strip()
-                            if last:
-                                state.position = float(last) / 1_000_000
+                        # May have multiple lines, take last non-empty
+                        for line in reversed(ch.split(b'\n')):
+                            if line.strip():
+                                state.position = float(line.strip()) / 1_000_000
                                 state.dirty = True
+                                break
                 except OSError:
                     pass
                 if pos_proc.poll() is not None:
@@ -676,14 +1023,19 @@ def main():
                     pos_proc = start_position_follower() if current_player else None
 
             if meta_proc and meta_proc.stdout in readable:
-                # Read metadata
+                # Read metadata - METADATA_FORMAT has 39 fields joined by \n
                 try:
                     data = os.read(meta_proc.stdout.fileno(), 4096)
                     if data:
-                        lines = data.split(b'\n')
-                        for line in lines:
-                            if line:
-                                parsed = parse_metadata(line.decode('utf-8', errors='replace').strip())
+                        decoded = data.decode('utf-8', errors='replace')
+                        # Each metadata update is 39 lines (fields joined by \n)
+                        # Parse all complete blocks (39 lines each)
+                        lines = decoded.strip().split('\n')
+                        for i in range(0, len(lines), 39):
+                            block_lines = lines[i:i+39]
+                            if len(block_lines) == 39:
+                                block = '\n'.join(block_lines)
+                                parsed = parse_metadata(block)
                                 if parsed:
                                     update_state_from_metadata(parsed)
                 except OSError:
