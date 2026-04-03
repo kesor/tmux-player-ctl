@@ -32,12 +32,16 @@ A minimal tmux popup controller for MPRIS media players via `playerctl`.
 
 Run the script in a tmux popup:
 ```bash
-tmux display-popup -x0 -y0 -w100% -h100% -k -E "tmux-player-ctl"
+# Tight fit (recommended - matches UI exactly)
+tmux display-popup -B -xC -yC -w72 -h12 -E "tmux-player-ctl.py"
+
+# Full terminal
+tmux display-popup -x0 -y0 -w100% -h100% -k -E "tmux-player-ctl.py"
 ```
 
 Or with the full path:
 ```bash
-tmux display-popup -x0 -y0 -w100% -h100% -k -E "python3 /path/to/tmux-player-ctl.py"
+tmux display-popup -B -xC -yC -w72 -h12 -E "python3 /path/to/tmux-player-ctl.py"
 ```
 
 ## Keybindings
