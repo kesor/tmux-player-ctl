@@ -140,6 +140,8 @@ class PlayerState:
     shuffle: str = "false"
     dirty: bool = True
     pre_mute_volume: int = 50  # Store volume before mute for restore on unmute
+    _start_time_w: Optional[int] = None  # Width of start time (set by progress_row for volume_row)
+    _end_time_w: Optional[int] = None  # Width of end time (set by progress_row for volume_row)
 
 
 state = PlayerState()
@@ -708,8 +710,8 @@ def volume_row():
     """Volume row: icon + bar + percentage."""
     vol_pct = state.volume  # already int 0-100
     pct_text = f"{vol_pct}%"
-    start_w = getattr(state, "_start_time_w", None) or time_width()
-    end_w = getattr(state, "_end_time_w", None) or time_width()
+    start_w = state._start_time_w if state._start_time_w is not None else time_width()
+    end_w = state._end_time_w if state._end_time_w is not None else time_width()
     pct_text = pct_text.rjust(end_w)
     vol_icon = icon(_volume_icon(vol_pct), start_w)
     bar_w = Config.UI_WIDTH - 4 - start_w - 1 - 1 - end_w
