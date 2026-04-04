@@ -4,6 +4,7 @@ Test suite for utility functions.
 """
 
 import unittest
+from unittest.mock import patch, MagicMock
 
 import importlib.util
 
@@ -126,6 +127,36 @@ class TestThemeBG(unittest.TestCase):
     def test_theme_bg_default_empty(self):
         """Theme.BG default is empty string."""
         self.assertEqual(tpc.Theme.BG, "")
+
+
+class TestPlayerctlSubprocess(unittest.TestCase):
+    """Test _playerctl_subprocess - single subprocess spawner."""
+
+    @patch.object(tpc, "_playerctl_subprocess")
+    def test_returns_completed_process(self, mock_sub):
+        """Should return a CompletedProcess result."""
+        mock_sub.return_value = MagicMock(returncode=0, stdout="Playing", stderr="")
+        result = tpc.run_playerctl("status")
+        self.assertEqual(result, "Playing")
+        mock_sub.assert_called_once()
+
+
+class TestCheckPlayerctl(unittest.TestCase):
+    """Test check_playerctl() - verifies playerctl command exists."""
+
+    @patch.object(tpc, "_playerctl_subprocess")
+    def test_playerctl_exists_ok(self, mock_sub):
+        """When playerctl --version succeeds, no error."""
+        mock_sub.return_value = MagicMock(returncode=0, stdout="playerctl 2.12.0")
+        tpc.check_playerctl()  # Should not raise
+
+    @patch.object(tpc, "_playerctl_subprocess")
+    def test_playerctl_missing_exits(self, mock_sub):
+        """When playerctl is missing, exits with error."""
+        mock_sub.return_value = MagicMock(returncode=127, stdout="", stderr="")
+        with self.assertRaises(SystemExit) as cm:
+            tpc.check_playerctl()
+        self.assertEqual(cm.exception.code, 1)
 
 
 class TestConfigNoBG(unittest.TestCase):

@@ -275,15 +275,33 @@ def render_ui():
 
 
 def get_available_players() -> List[str]:
-    try:
-        result = subprocess.run(
-            ["playerctl", "--list-all"], capture_output=True, text=True, timeout=0.5
-        )
-        if result.returncode != 0:
-            return []
-        return [p.strip() for p in result.stdout.strip().split("\n") if p.strip()]
-    except (FileNotFoundError, subprocess.TimeoutExpired, OSError):
+    result = _playerctl_subprocess(["--list-all"])
+    if result.returncode != 0:
         return []
+    return [p.strip() for p in result.stdout.strip().split("\n") if p.strip()]
+
+
+def check_playerctl() -> None:
+    """Verify playerctl command exists. Exits with error if not."""
+    result = _playerctl_subprocess(["--version"], timeout=1)
+    if result.returncode != 0:
+        print("Error: playerctl command not available", file=sys.stderr)
+        sys.exit(1)
+
+
+def _playerctl_subprocess(
+    extra_args: Optional[List[str]] = None,
+    timeout: float = 0.5,
+    capture: bool = True,
+) -> subprocess.CompletedProcess:
+    """Spawn playerctl subprocess. All subprocess.run calls go through here."""
+    args = ["playerctl"] + player_args() + (list(extra_args) if extra_args else [])
+    try:
+        stdout = subprocess.PIPE if capture else subprocess.DEVNULL
+        stderr = subprocess.PIPE if capture else subprocess.DEVNULL
+        return subprocess.run(args, stdout=stdout, stderr=stderr, text=True, timeout=timeout)
+    except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
+        return subprocess.CompletedProcess(args, 1, "", "")
 
 
 def player_args() -> List[str]:
@@ -332,18 +350,10 @@ def switch_player(meta_proc) -> Optional[subprocess.Popen]:
 
 def run_playerctl(*args) -> str:
     """Run playerctl command, return stdout stripped."""
-    try:
-        result = subprocess.run(
-            ["playerctl"] + player_args() + list(args),
-            capture_output=True,
-            text=True,
-            timeout=0.5,
-        )
-        if result.returncode != 0:
-            return ""
-        return result.stdout.strip()
-    except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
+    result = _playerctl_subprocess(list(args))
+    if result.returncode != 0:
         return ""
+    return result.stdout.strip()
 
 
 def start_metadata_follower() -> Optional[subprocess.Popen]:
@@ -782,15 +792,7 @@ def run_playerctl_async(*args) -> None:
     """Fire-and-forget playerctl command. Does not block the main loop."""
 
     def _exec():
-        try:
-            subprocess.run(
-                ["playerctl"] + player_args() + list(args),
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                timeout=0.3,  # Fail fast if playerctl hangs
-            )
-        except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
-            pass  # Metadata follower will reconcile state on next update
+        _playerctl_subprocess(list(args), timeout=0.3, capture=False)
 
     _playerctl_pool.submit(_exec)
 
@@ -881,6 +883,7 @@ def handle_key(key: str, seq: str = "") -> None:
 def main():
     global current_player, current_player_idx, available_players
 
+    check_playerctl()  # Exit early if playerctl not available
     setup_signals()
 
     # Hide cursor
