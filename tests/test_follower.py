@@ -66,10 +66,7 @@ class TestParseMetadataPosition(unittest.TestCase):
         result = tpc.parse_metadata(raw)
         self.assertEqual(result["length"], 300.0)
 
-    def test_parse_metadata_returns_empty_dict_for_short_input(self):
-        """parse_metadata should return empty dict for input < 10 fields."""
-        result = tpc.parse_metadata("field1\nfield2")
-        self.assertEqual(result, {})
+
 
     def test_parse_metadata_all_basic_fields(self):
         """parse_metadata should return dict with basic fields."""

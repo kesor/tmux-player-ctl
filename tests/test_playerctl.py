@@ -51,10 +51,7 @@ class TestParseMetadata(unittest.TestCase):
             f"@{i}@{merged.get(f, '')}" for i, f in enumerate(tpc.METADATA_FIELDS)
         )
 
-    def test_parse_empty_metadata(self):
-        """Short input should return empty dict."""
-        result = tpc.parse_metadata("short\n")
-        self.assertEqual(result, {})
+
 
     def test_parse_basic_metadata(self):
         """Should extract player, status, title, artist, album."""

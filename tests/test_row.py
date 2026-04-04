@@ -429,11 +429,6 @@ class TestMetadataParse(unittest.TestCase):
         self.assertEqual(result["artist"], "")
         self.assertEqual(result["album"], "")
 
-    def test_metadata_parse_empty_string(self):
-        raw = ""
-        result = tpc.parse_metadata(raw)
-        self.assertEqual(result, {})
-
     def test_metadata_parse_loop_none(self):
         raw = make_metadata(loop="None")
         result = tpc.parse_metadata(raw)
@@ -544,11 +539,6 @@ class TestMetadataParse(unittest.TestCase):
             result = tpc.parse_metadata(raw)
             self.assertEqual(result["volume"], expected, f"{vol_float} -> {expected}")
 
-    def test_metadata_parse_short_input(self):
-        """Short input returns empty dict."""
-        result = tpc.parse_metadata("field1\nfield2")
-        self.assertEqual(result, {})
-
     def test_metadata_fields_has_39_elements(self):
         """METADATA_FIELDS should have exactly 39 elements."""
         self.assertEqual(len(tpc.METADATA_FIELDS), 39)
@@ -590,11 +580,16 @@ class TestMetadataParse(unittest.TestCase):
         self.assertEqual(result, {})
 
     def test_metadata_parse_partial_fields(self):
-        """Partial fields (passes < 10 check) but triggers IndexError."""
-        # 15 fields: passes len check but parts[31] raises IndexError
-        raw = "\n".join(["p"] * 15)
+        """Player sends only non-empty fields - partial parse works."""
+        # Player sends only the fields it has; empty fields are omitted
+        # Simulate: spotify sends @0@spotify, @1@Playing, @2@Title, @3@Artist
+        # (Not all 39 fields)
+        raw = "\n@0@spotify\n@1@Playing\n@2@Test Song\n@3@Test Artist"
         result = tpc.parse_metadata(raw)
-        self.assertEqual(result, {})
+        self.assertEqual(result["player"], "spotify")
+        self.assertEqual(result["status"], "Playing")
+        self.assertEqual(result["title"], "Test Song")
+        self.assertEqual(result["artist"], "Test Artist")
 
 
 class TestVolumeIcon(unittest.TestCase):

@@ -473,10 +473,9 @@ def parse_metadata(raw: str) -> dict:
         for part in parts[1:]:
             end = part.index("@")
             idx = int(part[:end])
-            data[METADATA_FIELDS[idx]] = part[end + 1 :]
-        if len(data) != len(METADATA_FIELDS):
-            return {}
-    except (ValueError, IndexError, KeyError):
+            if 0 <= idx < len(METADATA_FIELDS):
+                data[METADATA_FIELDS[idx]] = part[end + 1 :]
+    except (ValueError, IndexError):
         return {}
 
     def get(key: str, default: str = "") -> str:
@@ -1013,6 +1012,7 @@ def main():
         s.meta_proc = start_metadata_follower() if s.current_player else None
 
         clear_screen()
+        render_ui()  # Render initial state before entering the loop
 
         stdin_fd = None
         old_settings = None
