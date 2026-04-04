@@ -1,13 +1,8 @@
 .PHONY: test test-verbose test-file test-class test-function test-cov test-integration display help
 
-# Run all unit tests (excludes integration tests)
+# Run all unit tests including integration tests
 test:
-	@echo "Running unit tests..."
-	@cd tests && python3 -m unittest discover -v
-
-# Run all tests including integration tests
-test-all:
-	@echo "Running all tests..."
+	@echo "Running tests..."
 	@cd tests && python3 -m unittest discover -v && python3 -m unittest integration -v
 
 # Run integration tests (requires actual playerctl)

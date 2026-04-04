@@ -30,7 +30,8 @@ class TestPlayerctlIntegration(unittest.TestCase):
             self.skipTest("No media players available")
 
         status = tpc.run_playerctl("status")
-        self.assertIn(status, ["Playing", "Paused", "Stopped", ""])
+        # May have trailing newline since we no longer strip
+        self.assertIn(status.strip(), ["Playing", "Paused", "Stopped", ""])
 
     def test_get_metadata_format(self):
         """Should get metadata in expected format."""
@@ -39,7 +40,25 @@ class TestPlayerctlIntegration(unittest.TestCase):
             self.skipTest("No media players available")
 
         result = tpc.run_playerctl("--format", "{{status}}", "status")
-        self.assertIn(result, ["Playing", "Paused", "Stopped"])
+        # May have trailing newline since we no longer strip
+        self.assertIn(result.strip(), ["Playing", "Paused", "Stopped"])
+
+    def test_metadata_parsing_round_trip(self):
+        """Full round-trip: run_playerctl -> parse_metadata returns valid dict."""
+        players = tpc.get_available_players()
+        if not players:
+            self.skipTest("No media players available")
+
+        # Get metadata using the METADATA_FORMAT
+        raw = tpc.run_playerctl("--format", tpc.METADATA_FORMAT, "metadata")
+        self.assertTrue(bool(raw), "run_playerctl returned empty for metadata")
+
+        # parse_metadata should return a valid dict with key fields
+        parsed = tpc.parse_metadata(raw)
+        self.assertIsInstance(parsed, dict)
+        self.assertIn("player", parsed)
+        self.assertIn("status", parsed)
+        self.assertIn("title", parsed)
 
 
 if __name__ == "__main__":
