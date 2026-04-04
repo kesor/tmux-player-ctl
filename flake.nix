@@ -10,6 +10,10 @@
       pkgs = import nixpkgs { system = "x86_64-linux"; };
     in
     {
+      packages.x86_64-linux = {
+        default = pkgs.writeScriptBin "tmux-player-ctl" (builtins.readFile ./tmux-player-ctl.py);
+      };
+
       devShells.x86_64-linux.default = pkgs.mkShell {
         packages = with pkgs; [
           python313
