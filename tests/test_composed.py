@@ -172,23 +172,26 @@ class TestInfoRow(unittest.TestCase):
         """Info rows span full UI_WIDTH."""
 
 
-    def test_empty_album_returns_none(self):
-        """Empty album returns None (row not drawn)."""
+    def test_empty_album_returns_row(self):
+        """Empty album returns row with label."""
         tpc.state.album = ""
         result = tpc.album_row()
-        self.assertIsNone(result)
+        self.assertIsNotNone(result)
+        self.assertIn("Album:", result)
 
-    def test_empty_track_returns_none(self):
-        """Empty track returns None (row not drawn)."""
+    def test_empty_track_returns_row(self):
+        """Empty track returns row with label."""
         tpc.state.title = ""
         result = tpc.track_row()
-        self.assertIsNone(result)
+        self.assertIsNotNone(result)
+        self.assertIn("Track:", result)
 
-    def test_empty_artist_returns_none(self):
-        """Empty artist returns None (row not drawn)."""
+    def test_empty_artist_returns_row(self):
+        """Empty artist returns row with label."""
         tpc.state.artist = ""
         result = tpc.artist_row()
-        self.assertIsNone(result)
+        self.assertIsNotNone(result)
+        self.assertIn("Artist:", result)
 
 
 class TestProgressRow(unittest.TestCase):

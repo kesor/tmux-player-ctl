@@ -241,29 +241,21 @@ def render_ui():
     # Move cursor to top of UI area
     move_cursor(1, 1)
     
-    # Build rows dynamically - skip None (missing metadata)
-    info_rows = [
-        album_row(),
-        track_row(),
-        artist_row(),
-    ]
-    visible_info = [r for r in info_rows if r is not None]
-    
-    # Build all rows
+    # Build all rows (always include all, even if metadata missing)
     rows = [
         border_top(),
         header_row(),
         border_mid(),
-    ]
-    rows.extend(visible_info)
-    rows.extend([
+        album_row(),   # Always shown (may be empty)
+        track_row(),
+        artist_row(),
         border_mid(),
         progress_row(),
         volume_row(),
         border_mid(),
         toolbar_row(),
         border_bot(),
-    ])
+    ]
     
     # Calculate dynamic UI height
     ui_height = len(rows)
@@ -596,9 +588,12 @@ def header_row() -> str:
 
 
 def _info_row(label: str, value: str):
-    """Info row: label (7) + value (remaining). Returns None if value empty."""
+    """Info row: label (7) + value (remaining). Returns empty row if value empty."""
     if not value:
-        return None
+        inner = Config.UI_WIDTH - 4
+        lw, gap = 7, 1
+        label_colored = colorize(label.rjust(lw), Theme.DIM)
+        return row((label_colored, lw, '>'), ("", inner - lw - gap, '<'))
     inner = Config.UI_WIDTH - 4
     lw, gap = 7, 1
     vw = inner - lw - gap

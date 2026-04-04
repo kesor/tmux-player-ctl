@@ -784,14 +784,14 @@ class TestRenderUI(unittest.TestCase):
             output = sys.stdout.getvalue()
         finally:
             sys.stdout = old_stdout
-        # Album row should NOT be present
-        self.assertNotIn("Album:", output)
+        # Album row IS present but empty
+        self.assertIn("Album:", output)
         # Other rows should be present
         self.assertIn("Track:", output)
         self.assertIn("Artist:", output)
 
     def test_render_ui_missing_title(self):
-        """Title missing - track row not rendered."""
+        """Title missing - track row shows label with empty value."""
         tpc.state.title = ""
         tpc.state.artist = "Test Artist"
         tpc.state.album = "Test Album"
@@ -804,12 +804,12 @@ class TestRenderUI(unittest.TestCase):
             output = sys.stdout.getvalue()
         finally:
             sys.stdout = old_stdout
-        self.assertNotIn("Track:", output)
+        self.assertIn("Track:", output)
         self.assertIn("Album:", output)
         self.assertIn("Artist:", output)
 
     def test_render_ui_missing_artist(self):
-        """Artist missing - artist row not rendered."""
+        """Artist missing - artist row shows label with empty value."""
         tpc.state.title = "Test Song"
         tpc.state.artist = ""
         tpc.state.album = "Test Album"
@@ -822,12 +822,12 @@ class TestRenderUI(unittest.TestCase):
             output = sys.stdout.getvalue()
         finally:
             sys.stdout = old_stdout
-        self.assertNotIn("Artist:", output)
+        self.assertIn("Artist:", output)
         self.assertIn("Album:", output)
         self.assertIn("Track:", output)
 
     def test_render_ui_all_missing(self):
-        """All metadata missing - still renders basic structure."""
+        """All metadata missing - still renders all rows with labels."""
         tpc.state.title = ""
         tpc.state.artist = ""
         tpc.state.album = ""
@@ -840,11 +840,11 @@ class TestRenderUI(unittest.TestCase):
             output = sys.stdout.getvalue()
         finally:
             sys.stdout = old_stdout
-        # No info rows
-        self.assertNotIn("Album:", output)
-        self.assertNotIn("Track:", output)
-        self.assertNotIn("Artist:", output)
-        # But still has structure
+        # All info rows still present with labels
+        self.assertIn("Album:", output)
+        self.assertIn("Track:", output)
+        self.assertIn("Artist:", output)
+        # And has structure
         self.assertIn("┌", output)
         self.assertIn("└", output)
         # And progress/volume
