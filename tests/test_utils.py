@@ -159,6 +159,28 @@ class TestCheckPlayerctl(unittest.TestCase):
         self.assertEqual(cm.exception.code, 1)
 
 
+class TestHandleKeyQuit(unittest.TestCase):
+    """Test handle_key quit keys set shutdown_requested."""
+
+    def setUp(self):
+        self._orig = tpc.shutdown_requested
+        tpc.shutdown_requested = False
+        tpc.last_command_time = 0
+
+    def tearDown(self):
+        tpc.shutdown_requested = self._orig
+
+    def test_q_quits_with_flag(self):
+        """Pressing q sets shutdown_requested without calling sys.exit."""
+        tpc.handle_key("q", "")
+        self.assertTrue(tpc.shutdown_requested)
+
+    def test_esc_quits_with_flag(self):
+        """Pressing Esc sets shutdown_requested without calling sys.exit."""
+        tpc.handle_key("\x1b", "")
+        self.assertTrue(tpc.shutdown_requested)
+
+
 class TestGetBestPlayer(unittest.TestCase):
     """Test get_best_player() - selects Playing > Paused > first."""
 

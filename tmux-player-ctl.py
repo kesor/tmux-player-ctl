@@ -872,16 +872,20 @@ def run_playerctl_async(*args) -> None:
 
 
 def handle_key(key: str, seq: str = "") -> None:
-    global last_command_time
+    global last_command_time, shutdown_requested
 
     now = time.time()
     if key != "q" and key != "Q" and key != "\x1b" and now - last_command_time < COMMAND_COOLDOWN:
         return  # Ignore rapid repeats
-    last_command_time = now
-
+    # Quit bypasses cooldown
     if key in {"q", "Q"} or (key == "\x1b" and not seq):
         cleanup()
-        sys.exit(0)
+        shutdown_requested = True
+        return
+
+    if now - last_command_time < COMMAND_COOLDOWN:
+        return  # Ignore rapid repeats
+    last_command_time = now
 
     if key == "\x1b":
         if seq == "[A":
