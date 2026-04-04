@@ -774,6 +774,8 @@ def update_state_from_metadata(data: dict):
         return
     changed = False
     for key, value in data.items():
+        if key == "player":
+            continue  # preserve full player identifier from s.current_player
         if getattr(s.state, key, None) != value:
             setattr(s.state, key, value)
             changed = True
