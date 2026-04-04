@@ -654,7 +654,7 @@ def volume_row():
     bar_w = inner_w - start_w - 1 - 1 - end_w
     bar = volume_bar(vol_pct, max(0, bar_w))
     return row(
-        (vol_icon, 3, "<"),
+        (f"{vol_icon:^3}", max(start_w - 1, 0), "<"),
         (bar, max(0, bar_w), "^"),
         (pct_text, end_w, ">"),
     )
