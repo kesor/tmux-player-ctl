@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3 -u
 """
 tmux-player-ctl - A tmux popup controller for MPRIS media players via playerctl.
 
