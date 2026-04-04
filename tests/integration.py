@@ -8,6 +8,7 @@ Run with: python3 -m unittest integration
 import unittest
 
 import importlib.util
+
 spec = importlib.util.spec_from_file_location("tpc", "../tmux-player-ctl.py")
 tpc = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(tpc)
@@ -27,7 +28,7 @@ class TestPlayerctlIntegration(unittest.TestCase):
         players = tpc.get_available_players()
         if not players:
             self.skipTest("No media players available")
-        
+
         status = tpc.run_playerctl("status")
         self.assertIn(status, ["Playing", "Paused", "Stopped", ""])
 
@@ -36,7 +37,7 @@ class TestPlayerctlIntegration(unittest.TestCase):
         players = tpc.get_available_players()
         if not players:
             self.skipTest("No media players available")
-        
+
         result = tpc.run_playerctl("--format", "{{status}}", "status")
         self.assertIn(result, ["Playing", "Paused", "Stopped"])
 

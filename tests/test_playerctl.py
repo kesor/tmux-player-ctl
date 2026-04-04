@@ -9,6 +9,7 @@ import subprocess
 from unittest.mock import patch, MagicMock
 
 import importlib.util
+
 spec = importlib.util.spec_from_file_location("tpc", "../tmux-player-ctl.py")
 tpc = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(tpc)
@@ -64,7 +65,7 @@ class TestParseMetadata(unittest.TestCase):
             artist="Artist Name",
             album="Album Name",
             position="60000000",  # 60 seconds
-            length="300000000",   # 300 seconds
+            length="300000000",  # 300 seconds
             volume="0.5",
         )
         result = tpc.parse_metadata(raw)
@@ -106,9 +107,9 @@ class TestRunPlayerctl(unittest.TestCase):
     def test_calls_playerctl_with_args(self, mock_run):
         """Should call subprocess.run with playerctl command."""
         mock_run.return_value = MagicMock(stdout="output\n", returncode=0)
-        
-        result = tpc.run_playerctl("metadata")
-        
+
+        tpc.run_playerctl("metadata")
+
         mock_run.assert_called_once()
         call_args = mock_run.call_args[0][0]  # first positional arg
         self.assertEqual(call_args[0], "playerctl")
@@ -119,40 +120,40 @@ class TestRunPlayerctl(unittest.TestCase):
         """Should include -p player when current_player is set."""
         tpc.current_player = "spotify"
         mock_run.return_value = MagicMock(stdout="ok\n", returncode=0)
-        
+
         tpc.run_playerctl("status")
-        
+
         call_args = mock_run.call_args[0][0]
         self.assertIn("-p", call_args)
         self.assertIn("spotify", call_args)
-        
+
         tpc.current_player = ""
 
     @patch("subprocess.run")
     def test_returns_stripped_output(self, mock_run):
         """Should return stripped stdout."""
         mock_run.return_value = MagicMock(stdout="  output  \n", returncode=0)
-        
+
         result = tpc.run_playerctl("metadata")
-        
+
         self.assertEqual(result, "output")
 
     @patch("subprocess.run")
     def test_returns_empty_on_error(self, mock_run):
         """Should return empty string on non-zero exit."""
         mock_run.return_value = MagicMock(returncode=1, stderr="error")
-        
+
         result = tpc.run_playerctl("invalid")
-        
+
         self.assertEqual(result, "")
 
     @patch("subprocess.run")
     def test_returns_empty_on_timeout(self, mock_run):
         """Should return empty string on timeout."""
         mock_run.side_effect = subprocess.TimeoutExpired("cmd", 2)
-        
+
         result = tpc.run_playerctl("metadata")
-        
+
         self.assertEqual(result, "")
 
 
@@ -163,27 +164,27 @@ class TestGetAvailablePlayers(unittest.TestCase):
     def test_finds_single_player(self, mock_run):
         """Should return list with one player."""
         mock_run.return_value = MagicMock(stdout="spotify\n", returncode=0)
-        
+
         result = tpc.get_available_players()
-        
+
         self.assertEqual(result, ["spotify"])
 
     @patch("subprocess.run")
     def test_finds_multiple_players(self, mock_run):
         """Should return all players from stdout."""
         mock_run.return_value = MagicMock(stdout="spotify\nfirefox\n", returncode=0)
-        
+
         result = tpc.get_available_players()
-        
+
         self.assertEqual(result, ["spotify", "firefox"])
 
     @patch("subprocess.run")
     def test_returns_empty_on_no_players(self, mock_run):
         """Should return empty list if no players."""
         mock_run.return_value = MagicMock(stdout="", returncode=0)
-        
+
         result = tpc.get_available_players()
-        
+
         self.assertEqual(result, [])
 
 
@@ -202,7 +203,7 @@ class TestHandleKeyVolume(unittest.TestCase):
     def tearDown(self):
         tpc.state = self._orig_state
 
-    @patch.object(tpc, 'run_playerctl')
+    @patch.object(tpc, "run_playerctl")
     def test_volume_up_sends_float(self, mock_run):
         """Volume up should send float to playerctl."""
         tpc.handle_key("\x1b", "[A")  # Arrow up
@@ -215,7 +216,7 @@ class TestHandleKeyVolume(unittest.TestCase):
         # Volume should have increased
         self.assertEqual(tpc.state.volume, 55)
 
-    @patch.object(tpc, 'run_playerctl')
+    @patch.object(tpc, "run_playerctl")
     def test_volume_down_sends_float(self, mock_run):
         """Volume down should send float to playerctl."""
         tpc.handle_key("\x1b", "[B")  # Arrow down
@@ -226,21 +227,21 @@ class TestHandleKeyVolume(unittest.TestCase):
         # Volume should have decreased
         self.assertEqual(tpc.state.volume, 45)
 
-    @patch.object(tpc, 'run_playerctl')
+    @patch.object(tpc, "run_playerctl")
     def test_volume_up_at_max_stays_100(self, mock_run):
         """Volume up at 100 stays at 100."""
         tpc.state.volume = 100
         tpc.handle_key("\x1b", "[A")
         self.assertEqual(tpc.state.volume, 100)
 
-    @patch.object(tpc, 'run_playerctl')
+    @patch.object(tpc, "run_playerctl")
     def test_volume_down_at_min_stays_0(self, mock_run):
         """Volume down at 0 stays at 0."""
         tpc.state.volume = 0
         tpc.handle_key("\x1b", "[B")
         self.assertEqual(tpc.state.volume, 0)
 
-    @patch.object(tpc, 'run_playerctl')
+    @patch.object(tpc, "run_playerctl")
     def test_mute_sets_volume_0(self, mock_run):
         """Mute should set volume to 0."""
         tpc.state.volume = 75
@@ -252,7 +253,7 @@ class TestHandleKeyVolume(unittest.TestCase):
         # Should store the pre-mute volume
         self.assertEqual(tpc.state.pre_mute_volume, 75)
 
-    @patch.object(tpc, 'run_playerctl')
+    @patch.object(tpc, "run_playerctl")
     def test_unmute_restores_stored_volume(self, mock_run):
         """Unmute should restore to stored pre-mute volume."""
         tpc.state.volume = 0
@@ -263,7 +264,7 @@ class TestHandleKeyVolume(unittest.TestCase):
         self.assertEqual(args[0][1], "0.75")  # 75% as float
         self.assertEqual(tpc.state.volume, 75)
 
-    @patch.object(tpc, 'run_playerctl')
+    @patch.object(tpc, "run_playerctl")
     def test_unmute_falls_back_to_50(self, mock_run):
         """Unmute with no stored volume should fall back to 50."""
         tpc.state.volume = 0
@@ -274,17 +275,17 @@ class TestHandleKeyVolume(unittest.TestCase):
         self.assertEqual(args[0][1], "0.50")  # Default 50%
         self.assertEqual(tpc.state.volume, 50)
 
-    @patch.object(tpc, 'run_playerctl')
+    @patch.object(tpc, "run_playerctl")
     def test_mute_then_unmute_restores_volume(self, mock_run):
         """Mute then unmute cycle should restore original volume."""
         tpc.state.volume = 80
         tpc.state.pre_mute_volume = 50  # From previous unmute
-        
+
         # Mute
         tpc.handle_key("m", "")
         self.assertEqual(tpc.state.volume, 0)
         self.assertEqual(tpc.state.pre_mute_volume, 80)  # Stored before mute
-        
+
         # Unmute
         tpc.handle_key("m", "")
         args = mock_run.call_args  # Get last call
@@ -409,7 +410,7 @@ class TestMetadataFollowerParsing(unittest.TestCase):
         # Parse each block by taking 39 lines at a time
         titles_found = []
         for i in range(0, len(lines), 39):
-            block_lines = lines[i:i+39]
+            block_lines = lines[i : i + 39]
             if len(block_lines) == 39:
                 block = "\n".join(block_lines)
                 result = tpc.parse_metadata(block)

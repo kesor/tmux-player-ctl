@@ -6,6 +6,7 @@ Test suite for utility functions.
 import unittest
 
 import importlib.util
+
 spec = importlib.util.spec_from_file_location("tpc", "../tmux-player-ctl.py")
 tpc = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(tpc)
@@ -158,14 +159,16 @@ class TestClearScreen(unittest.TestCase):
 
     def test_clears_with_ansi_escape(self):
         """Should write ANSI clear sequence."""
-        import io, sys
+        import io
+        import sys
+
         old_stdout = sys.stdout
         sys.stdout = io.StringIO()
         tpc.clear_screen()
         output = sys.stdout.getvalue()
         sys.stdout = old_stdout
-        self.assertIn('\033[2J', output)  # Clear screen
-        self.assertIn('\033[H', output)   # Home cursor
+        self.assertIn("\033[2J", output)  # Clear screen
+        self.assertIn("\033[H", output)  # Home cursor
 
 
 class TestMoveCursor(unittest.TestCase):
@@ -173,13 +176,15 @@ class TestMoveCursor(unittest.TestCase):
 
     def test_moves_to_position(self):
         """Should write ANSI positioning sequence."""
-        import io, sys
+        import io
+        import sys
+
         old_stdout = sys.stdout
         sys.stdout = io.StringIO()
         tpc.move_cursor(5, 10)
         output = sys.stdout.getvalue()
         sys.stdout = old_stdout
-        self.assertEqual(output, '\033[5;10H')
+        self.assertEqual(output, "\033[5;10H")
 
 
 class TestResetState(unittest.TestCase):

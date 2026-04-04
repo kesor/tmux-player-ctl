@@ -1,9 +1,10 @@
 """Tests for follower refactoring: metadata follower should be sole position source."""
+
 import unittest
 import importlib.util
 
 # Load the module
-spec = importlib.util.spec_from_file_location('tpc', '../tmux-player-ctl.py')
+spec = importlib.util.spec_from_file_location("tpc", "../tmux-player-ctl.py")
 tpc = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(tpc)
 
@@ -15,9 +16,9 @@ def make_metadata(
     artist="Artist",
     album="Album",
     position="1.5",  # microseconds
-    length="300.0",   # microseconds  
+    length="300.0",  # microseconds
     volume="0.5",
-    **extra
+    **extra,
 ) -> str:
     """Create a 39-field metadata string for testing."""
     # Fields 0-4: basic info
@@ -36,28 +37,47 @@ def make_metadata(
     fields.extend(["None", "None", "false"])
     # Fields 37-38: artUrl, trackid (2 fields)
     fields.extend(["", ""])
-    
+
     # Apply any extra fields
     if extra:
         # Map extra field names to their indices
         field_map = {
-            "albumArtist": 5, "trackNumber": 6, "discNumber": 7,
-            "genre": 8, "explicit": 9, "subtitle": 10, "asText": 11,
-            "composer": 12, "lyricist": 13, "conductor": 14,
-            "performer": 15, "arranger": 16,
-            "releaseDate": 17, "contentCreated": 18,
-            "musicBrainzTrackId": 19, "musicBrainzAlbumId": 20,
+            "albumArtist": 5,
+            "trackNumber": 6,
+            "discNumber": 7,
+            "genre": 8,
+            "explicit": 9,
+            "subtitle": 10,
+            "asText": 11,
+            "composer": 12,
+            "lyricist": 13,
+            "conductor": 14,
+            "performer": 15,
+            "arranger": 16,
+            "releaseDate": 17,
+            "contentCreated": 18,
+            "musicBrainzTrackId": 19,
+            "musicBrainzAlbumId": 20,
             "musicBrainzArtistIds": 21,
-            "comment": 22, "mood": 23, "url": 24,
-            "userHomePage": 25, "useCount": 26, "autoRating": 27,
-            "audioBPM": 28, "language": 29, "lyrics": 30,
-            "loopStatus": 34, "loop": 35, "shuffle": 36,
-            "artUrl": 37, "trackid": 38,
+            "comment": 22,
+            "mood": 23,
+            "url": 24,
+            "userHomePage": 25,
+            "useCount": 26,
+            "autoRating": 27,
+            "audioBPM": 28,
+            "language": 29,
+            "lyrics": 30,
+            "loopStatus": 34,
+            "loop": 35,
+            "shuffle": 36,
+            "artUrl": 37,
+            "trackid": 38,
         }
         for key, value in extra.items():
             if key in field_map:
                 fields[field_map[key]] = value
-    
+
     return "\n".join(fields)
 
 
@@ -160,6 +180,7 @@ class TestUpdateStateFromMetadata(unittest.TestCase):
     def test_update_state_debounce_ignores_recent(self):
         """update_state_from_metadata should debounce recent commands."""
         import time
+
         tpc.last_command_time = time.time()
         tpc.state.dirty = False
         data = {"position": 99.0}
@@ -247,11 +268,11 @@ class TestNoDirectPipeReading(unittest.TestCase):
 
 class TestPositionFollowerRemoval(unittest.TestCase):
     """Test that position follower has been removed."""
-    
+
     def test_no_start_position_follower_function(self):
         """start_position_follower function should not exist after refactoring."""
-        self.assertFalse(hasattr(tpc, 'start_position_follower'))
+        self.assertFalse(hasattr(tpc, "start_position_follower"))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

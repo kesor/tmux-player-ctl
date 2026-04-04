@@ -8,17 +8,25 @@ import unittest
 import re
 
 # Strip all ANSI escape sequences and VS15/VS16 (zero-width variation selectors)
-ANSI = re.compile(r'\x1b\[[0-9;]*[mABCDHfHJKsu78]|\x1b[78]')
+ANSI = re.compile(r"\x1b\[[0-9;]*[mABCDHfHJKsu78]|\x1b[78]")
+
 
 def strip_visible(text):
     """Remove ANSI codes and VS15/VS16 to get visible length."""
-    return ANSI.sub('', text).replace('\ufe0e', '').replace('\ufe0f', '').replace('\u200b', '')
+    return (
+        ANSI.sub("", text)
+        .replace("\ufe0e", "")
+        .replace("\ufe0f", "")
+        .replace("\u200b", "")
+    )
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Import the module under test
 # ─────────────────────────────────────────────────────────────────────────────
 
-import importlib.util
+import importlib.util  # noqa: E402
+
 spec = importlib.util.spec_from_file_location("tpc", "../tmux-player-ctl.py")
 tpc = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(tpc)
@@ -27,6 +35,7 @@ spec.loader.exec_module(tpc)
 # ─────────────────────────────────────────────────────────────────────────────
 # Test Cases
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class TestBorderRows(unittest.TestCase):
     """Test border rows - top, middle, bottom."""
@@ -171,7 +180,6 @@ class TestInfoRow(unittest.TestCase):
     def test_info_rows_width(self):
         """Info rows span full UI_WIDTH."""
 
-
     def test_empty_album_returns_row(self):
         """Empty album returns row with label."""
         tpc.state.album = ""
@@ -215,7 +223,7 @@ class TestProgressRow(unittest.TestCase):
     def test_progress_row_has_bar(self):
         """Progress row includes bar characters."""
         result = tpc.progress_row()
-        plain = ANSI.sub('', result)
+        plain = ANSI.sub("", result)
         # Should have fill/empty characters
         self.assertTrue("━" in plain)
 
@@ -291,7 +299,7 @@ class TestProgressRow(unittest.TestCase):
         tpc.state.position = 90.0
         tpc.state.length = 180.0
         result = tpc.progress_row()
-        plain = ANSI.sub('', result)
+        plain = ANSI.sub("", result)
         self.assertIn("━", plain)  # filled bar char
 
     def test_progress_bar_empty_char(self):
@@ -299,7 +307,7 @@ class TestProgressRow(unittest.TestCase):
         tpc.state.position = 0.0
         tpc.state.length = 180.0
         result = tpc.progress_row()
-        plain = ANSI.sub('', result)
+        plain = ANSI.sub("", result)
         self.assertIn("━", plain)  # should still have bar
 
 
@@ -320,7 +328,7 @@ class TestVolumeRow(unittest.TestCase):
     def test_volume_row_has_bar(self):
         """Volume row includes bar characters."""
         result = tpc.volume_row()
-        plain = ANSI.sub('', result)
+        plain = ANSI.sub("", result)
         self.assertTrue("░" in plain or "█" in plain)
 
     def test_volume_row_has_percentage(self):
@@ -362,7 +370,7 @@ class TestVolumeRow(unittest.TestCase):
         """Volume bar has block characters."""
         tpc.state.volume = 50
         result = tpc.volume_row()
-        plain = ANSI.sub('', result)
+        plain = ANSI.sub("", result)
         self.assertIn("█", plain)
         self.assertIn("░", plain)
 
@@ -370,7 +378,7 @@ class TestVolumeRow(unittest.TestCase):
         """Volume 100% bar is mostly filled."""
         tpc.state.volume = 100
         result = tpc.volume_row()
-        plain = ANSI.sub('', result)
+        plain = ANSI.sub("", result)
         # Should have more filled than empty
         self.assertIn("█", plain)
 
@@ -420,12 +428,12 @@ class TestToolbarRow(unittest.TestCase):
 
     def test_toolbar_has_prev_hint(self):
         """Toolbar has prev hint."""
-        result = ANSI.sub('', tpc.toolbar_row())
+        result = ANSI.sub("", tpc.toolbar_row())
         self.assertIn("prev", result.lower())
 
     def test_toolbar_has_next_hint(self):
         """Toolbar has next hint."""
-        result = ANSI.sub('', tpc.toolbar_row())
+        result = ANSI.sub("", tpc.toolbar_row())
         self.assertIn("next", result.lower())
 
     def test_toolbar_has_next_highlight(self):
@@ -444,7 +452,7 @@ class TestToolbarRow(unittest.TestCase):
 
     def test_toolbar_has_quit_hint(self):
         """Toolbar has quit hint."""
-        result = ANSI.sub('', tpc.toolbar_row())
+        result = ANSI.sub("", tpc.toolbar_row())
         self.assertIn("close", result.lower())
 
     def test_toolbar_width(self):
@@ -526,7 +534,6 @@ class TestToolbarRow(unittest.TestCase):
         self.assertIn("esc/q close", visible)
 
 
-
 class TestAllRowsWidth(unittest.TestCase):
     """Test that all rows have borders."""
 
@@ -562,8 +569,19 @@ class TestAllRowsWidth(unittest.TestCase):
             self.assertIsNotNone(r)
             visible = strip_visible(r)
             # Either border (┌├└) or content (│ )
-            self.assertTrue(visible.startswith("│ ") or visible.startswith("┌") or visible.startswith("├") or visible.startswith("└"))
-            self.assertTrue(visible.endswith(" │") or visible.endswith("┐") or visible.endswith("┤") or visible.endswith("┘"))
+            self.assertTrue(
+                visible.startswith("│ ")
+                or visible.startswith("┌")
+                or visible.startswith("├")
+                or visible.startswith("└")
+            )
+            self.assertTrue(
+                visible.endswith(" │")
+                or visible.endswith("┐")
+                or visible.endswith("┤")
+                or visible.endswith("┘")
+            )
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

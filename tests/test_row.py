@@ -6,11 +6,18 @@ Test suite for UI components: truncate(), row(), overlay(), icon(), colorize(), 
 import unittest
 import re
 
-ANSI = re.compile(r'\x1b\[[0-9;]*m')
+ANSI = re.compile(r"\x1b\[[0-9;]*m")
+
 
 def strip_visible(text):
     """Remove ANSI codes and VS15/VS16."""
-    return ANSI.sub('', text).replace('\ufe0e', '').replace('\ufe0f', '').replace('\u200b', '')
+    return (
+        ANSI.sub("", text)
+        .replace("\ufe0e", "")
+        .replace("\ufe0f", "")
+        .replace("\u200b", "")
+    )
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Test Fixtures
@@ -29,7 +36,8 @@ FIXTURES = {
 # Import the module under test
 # ─────────────────────────────────────────────────────────────────────────────
 
-import importlib.util
+import importlib.util  # noqa: E402
+
 spec = importlib.util.spec_from_file_location("tpc", "../tmux-player-ctl.py")
 tpc = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(tpc)
@@ -38,6 +46,7 @@ spec.loader.exec_module(tpc)
 # ─────────────────────────────────────────────────────────────────────────────
 # Test Cases
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class TestTruncate(unittest.TestCase):
     """Test truncate() - fit content into a width slot."""
@@ -61,7 +70,7 @@ class TestTruncate(unittest.TestCase):
 
     def test_truncate_returns_plain_text(self):
         result = tpc.truncate("Hello World", 20)
-        self.assertIsNone(re.search(r'\x1b', result))
+        self.assertIsNone(re.search(r"\x1b", result))
 
     def test_truncate_empty_string(self):
         result = tpc.truncate("", 10)
@@ -91,13 +100,13 @@ class TestRow(unittest.TestCase):
     """Test row() - compose content slots into a bordered row."""
 
     def test_row_one_slot(self):
-        result = tpc.row(("Title", 20, '^'))
+        result = tpc.row(("Title", 20, "^"))
         self.assertTrue(strip_visible(result).startswith("│ "))
         self.assertTrue(strip_visible(result).endswith(" │"))
         self.assertIn("Title", result)
 
     def test_row_two_slots(self):
-        result = tpc.row(("hi", 2, '<'), ("bye", 3, '>'))
+        result = tpc.row(("hi", 2, "<"), ("bye", 3, ">"))
         self.assertTrue(strip_visible(result).startswith("│ "))
         self.assertTrue(strip_visible(result).endswith(" │"))
         self.assertIn("hi", result)
@@ -105,7 +114,7 @@ class TestRow(unittest.TestCase):
         self.assertIn(" ", result)
 
     def test_row_three_slots(self):
-        result = tpc.row(("L", 1, '<'), ("C", 1, '^'), ("R", 1, '>'))
+        result = tpc.row(("L", 1, "<"), ("C", 1, "^"), ("R", 1, ">"))
         self.assertTrue(strip_visible(result).startswith("│ "))
         self.assertTrue(strip_visible(result).endswith(" │"))
         self.assertIn("L", result)
@@ -113,7 +122,7 @@ class TestRow(unittest.TestCase):
         self.assertIn("R", result)
 
     def test_row_none_skipped(self):
-        result = tpc.row(("L", 1, '<'), None, ("R", 1, '>'))
+        result = tpc.row(("L", 1, "<"), None, ("R", 1, ">"))
         self.assertTrue(strip_visible(result).startswith("│ "))
         self.assertTrue(strip_visible(result).endswith(" │"))
         self.assertIn("L", result)
@@ -121,34 +130,34 @@ class TestRow(unittest.TestCase):
 
     def test_row_preserves_ansi_colors(self):
         colored = "\x1b[92mPlaying\x1b[0m"
-        result = tpc.row((colored, 7, '<'), None, ("1:30", 5, '>'))
+        result = tpc.row((colored, 7, "<"), None, ("1:30", 5, ">"))
         self.assertTrue(strip_visible(result).startswith("│ "))
         self.assertTrue(strip_visible(result).endswith(" │"))
         self.assertIn("\x1b[92m", result)
 
     def test_row_with_icon_overlay(self):
         icon_overlay = tpc.overlay("▶")
-        result = tpc.row((icon_overlay, 4, '<'), ("Title", 10, '^'))
+        result = tpc.row((icon_overlay, 4, "<"), ("Title", 10, "^"))
         self.assertTrue(strip_visible(result).startswith("│ "))
         self.assertIn("▶", result)
         self.assertIn("Title", result)
 
     def test_row_with_volume_bar_content(self):
         bar = tpc.volume_bar(50, 10)
-        result = tpc.row((bar, 10, '^'))
+        result = tpc.row((bar, 10, "^"))
         self.assertIn("█", result)
         self.assertIn("░", result)
 
     def test_row_with_progress_bar_content(self):
         bar = tpc.progress_bar(30.0, 100.0, 10)
-        result = tpc.row((bar, 10, '^'))
+        result = tpc.row((bar, 10, "^"))
         self.assertTrue("━" in result or "█" in result)
 
     def test_row_mixed_content(self):
         icon = tpc.colorize("▶", "\x1b[92m")
         text = "Playing"
         pct = tpc.colorize("75%", "\x1b[97m")
-        result = tpc.row((icon, 1, '<'), (text, 10, '<'), (pct, 5, '>'))
+        result = tpc.row((icon, 1, "<"), (text, 10, "<"), (pct, 5, ">"))
         self.assertIn("▶", result)
         self.assertIn("Playing", result)
         self.assertIn("75%", result)
@@ -157,20 +166,18 @@ class TestRow(unittest.TestCase):
         icon = tpc.colorize("▶", "\x1b[92m")
         text = "Playing"
         pct = tpc.colorize("75%", "\x1b[97m")
-        result = tpc.row((icon, 1, '<'), (text, 10, '<'), (pct, 5, '>'))
+        result = tpc.row((icon, 1, "<"), (text, 10, "<"), (pct, 5, ">"))
         self.assertIn("▶", result)
         self.assertIn("Playing", result)
         self.assertIn("75%", result)
 
     def test_row_all_slots_total_width(self):
         icon = tpc.icon("play")
-        result = tpc.row((icon, 4, '<'), ("Test Title", 20, '^'))
+        result = tpc.row((icon, 4, "<"), ("Test Title", 20, "^"))
         self.assertTrue(strip_visible(result).startswith("│ "))
         self.assertTrue(strip_visible(result).endswith(" │"))
         self.assertIn("⏵", result)
         self.assertIn("Test Title", result)
-
-
 
     def test_volume_bar_zero_fills_none(self):
         """Volume 0 returns all empty blocks."""
@@ -247,7 +254,7 @@ class TestProgressBar(unittest.TestCase):
     def test_progress_bar_preserves_color_codes(self):
         """Progress bar contains ANSI color codes."""
         result = tpc.progress_bar(50.0, 100.0, 10)
-        self.assertIsNotNone(re.search(r'\x1b\[[0-9;]+m', result))
+        self.assertIsNotNone(re.search(r"\x1b\[[0-9;]+m", result))
 
     def test_progress_bar_has_reset(self):
         """Progress bar ends with color reset."""
@@ -328,114 +335,111 @@ class TestIcon(unittest.TestCase):
 
     def test_icon_play(self):
         result = tpc.icon("play")
-        self.assertIn("\u23F5\uFE0E", result)  # ⏵
+        self.assertIn("\u23f5\ufe0e", result)  # ⏵
         self.assertTrue(result.startswith("  "))
 
     def test_icon_pause(self):
         result = tpc.icon("pause")
-        self.assertIn("⏸\uFE0E", result)
+        self.assertIn("⏸\ufe0e", result)
         self.assertTrue(result.startswith("  "))
 
     def test_icon_stop(self):
         result = tpc.icon("stop")
-        self.assertIn("■\uFE0E", result)
+        self.assertIn("■\ufe0e", result)
         self.assertTrue(result.startswith("  "))
 
     def test_icon_play_pause(self):
         result = tpc.icon("play-pause")
-        self.assertIn("⏯\uFE0E", result)
+        self.assertIn("⏯\ufe0e", result)
         self.assertTrue(result.startswith("  "))
 
     def test_icon_prev(self):
         result = tpc.icon("prev")
-        self.assertIn("◀\uFE0E", result)
+        self.assertIn("◀\ufe0e", result)
         self.assertTrue(result.startswith("  "))
 
     def test_icon_seek_left(self):
         result = tpc.icon("seek-left")
-        self.assertIn("⏪\uFE0E", result)
+        self.assertIn("⏪\ufe0e", result)
         self.assertTrue(result.startswith("  "))
 
     def test_icon_seek_right(self):
         result = tpc.icon("seek-right")
-        self.assertIn("⏩\uFE0E", result)
+        self.assertIn("⏩\ufe0e", result)
         self.assertTrue(result.startswith("  "))
 
     def test_icon_next(self):
         result = tpc.icon("next")
-        self.assertIn("⏭\uFE0E", result)
+        self.assertIn("⏭\ufe0e", result)
         self.assertTrue(result.startswith("  "))
 
     def test_icon_skip_start(self):
         result = tpc.icon("skip-start")
-        self.assertIn("⏮\uFE0E", result)
+        self.assertIn("⏮\ufe0e", result)
         self.assertTrue(result.startswith("  "))
 
     def test_icon_skip_end(self):
         result = tpc.icon("skip-end")
-        self.assertIn("⏭\uFE0E", result)
+        self.assertIn("⏭\ufe0e", result)
         self.assertTrue(result.startswith("  "))
 
     def test_icon_eject(self):
         result = tpc.icon("eject")
-        self.assertIn("⏏\uFE0E", result)
+        self.assertIn("⏏\ufe0e", result)
         self.assertTrue(result.startswith("  "))
 
     def test_icon_vol_muted(self):
         result = tpc.icon("vol-muted")
         self.assertTrue(result.startswith("  "))
-        self.assertIn("\uFE0E", result)
+        self.assertIn("\ufe0e", result)
 
     def test_icon_vol_low(self):
         result = tpc.icon("vol-low")
         self.assertTrue(result.startswith("  "))
-        self.assertIn("\uFE0E", result)
+        self.assertIn("\ufe0e", result)
 
     def test_icon_vol_med(self):
         result = tpc.icon("vol-med")
         self.assertTrue(result.startswith("  "))
-        self.assertIn("\uFE0E", result)
+        self.assertIn("\ufe0e", result)
 
     def test_icon_vol_high(self):
         result = tpc.icon("vol-high")
         self.assertTrue(result.startswith("  "))
-        self.assertIn("\uFE0E", result)
+        self.assertIn("\ufe0e", result)
 
     def test_icon_shuffle(self):
         result = tpc.icon("shuffle")
         self.assertTrue(result.startswith("  "))
-        self.assertIn("\uFE0E", result)
+        self.assertIn("\ufe0e", result)
 
     def test_icon_repeat(self):
         result = tpc.icon("repeat")
         self.assertTrue(result.startswith("  "))
-        self.assertIn("\uFE0E", result)
+        self.assertIn("\ufe0e", result)
 
     def test_icon_repeat_one(self):
         result = tpc.icon("repeat-one")
         self.assertTrue(result.startswith("  "))
-        self.assertIn("\uFE0E", result)
+        self.assertIn("\ufe0e", result)
 
     def test_icon_with_custom_width(self):
         """Icon accepts custom width parameter."""
         result = tpc.icon("play", width=5)
         self.assertTrue(result.startswith("     "))  # 5 spaces
-        self.assertIn("\u23F5\uFE0E", result)  # ⏵
+        self.assertIn("\u23f5\ufe0e", result)  # ⏵
 
     def test_icon_with_width_4(self):
         """Icon with width 4 matches time display width."""
         result = tpc.icon("vol-high", width=4)
         self.assertTrue(result.startswith("    "))  # 4 spaces
-        self.assertIn("🔊\uFE0E", result)
+        self.assertIn("🔊\ufe0e", result)
 
     def test_icon_default_width_without_param(self):
         """Icon uses default width when no param provided."""
         result_default = tpc.icon("play")
         result_explicit = tpc.icon("play", width=None)
         self.assertEqual(result_default, result_explicit)
-
-
-
 
 
 def make_metadata(**kwargs):
@@ -482,47 +486,50 @@ def make_metadata(**kwargs):
         "trackid": "",
     }
     fields.update(kwargs)
-    return "\n".join([
-        fields["player"],
-        fields["status"],
-        fields["title"],
-        fields["artist"],
-        fields["album"],
-        fields["albumArtist"],
-        fields["trackNumber"],
-        fields["discNumber"],
-        fields["genre"],
-        fields["explicit"],
-        fields["subtitle"],
-        fields["asText"],
-        fields["composer"],
-        fields["lyricist"],
-        fields["conductor"],
-        fields["performer"],
-        fields["arranger"],
-        fields["releaseDate"],
-        fields["contentCreated"],
-        fields["musicBrainzTrackId"],
-        fields["musicBrainzAlbumId"],
-        fields["musicBrainzArtistIds"],
-        fields["comment"],
-        fields["mood"],
-        fields["url"],
-        fields["userHomePage"],
-        fields["useCount"],
-        fields["autoRating"],
-        fields["audioBPM"],
-        fields["language"],
-        fields["lyrics"],
-        fields["position"],
-        fields["length"],
-        fields["volume"],
-        fields["loopStatus"],
-        fields["loop"],
-        fields["shuffle"],
-        fields["artUrl"],
-        fields["trackid"],
-    ])
+    return "\n".join(
+        [
+            fields["player"],
+            fields["status"],
+            fields["title"],
+            fields["artist"],
+            fields["album"],
+            fields["albumArtist"],
+            fields["trackNumber"],
+            fields["discNumber"],
+            fields["genre"],
+            fields["explicit"],
+            fields["subtitle"],
+            fields["asText"],
+            fields["composer"],
+            fields["lyricist"],
+            fields["conductor"],
+            fields["performer"],
+            fields["arranger"],
+            fields["releaseDate"],
+            fields["contentCreated"],
+            fields["musicBrainzTrackId"],
+            fields["musicBrainzAlbumId"],
+            fields["musicBrainzArtistIds"],
+            fields["comment"],
+            fields["mood"],
+            fields["url"],
+            fields["userHomePage"],
+            fields["useCount"],
+            fields["autoRating"],
+            fields["audioBPM"],
+            fields["language"],
+            fields["lyrics"],
+            fields["position"],
+            fields["length"],
+            fields["volume"],
+            fields["loopStatus"],
+            fields["loop"],
+            fields["shuffle"],
+            fields["artUrl"],
+            fields["trackid"],
+        ]
+    )
+
 
 class TestMetadataParse(unittest.TestCase):
     """Test parse_metadata() - parse playerctl metadata output."""
@@ -530,7 +537,6 @@ class TestMetadataParse(unittest.TestCase):
     # Format: player␣status␣title␣artist␣album␣position␣length␣volume␣loop␣shuffle
     # position and length are in MICROSECONDS
 
-    
     def test_metadata_parse_valid(self):
         raw = make_metadata(
             player="spotify",
@@ -542,7 +548,7 @@ class TestMetadataParse(unittest.TestCase):
             length="2000000",
             volume="0.75",
             loop="None",
-            shuffle="false"
+            shuffle="false",
         )
         result = tpc.parse_metadata(raw)
 
@@ -559,11 +565,7 @@ class TestMetadataParse(unittest.TestCase):
 
     def test_metadata_parse_empty_fields(self):
         raw = make_metadata(
-            player="mpd",
-            status="Stopped",
-            position="0",
-            length="0",
-            volume="0.0"
+            player="mpd", status="Stopped", position="0", length="0", volume="0.0"
         )
         result = tpc.parse_metadata(raw)
 
@@ -688,6 +690,7 @@ class TestMetadataParse(unittest.TestCase):
             result = tpc.parse_metadata(raw)
             self.assertEqual(result["volume"], expected, f"{vol_float} -> {expected}")
 
+
 class TestLayout(unittest.TestCase):
     """Test layout concerns - positioning and width."""
 
@@ -695,7 +698,7 @@ class TestLayout(unittest.TestCase):
         """Icon overlay + text should fit in row width."""
         icon = tpc.overlay("▶")
         text = "Test Song Title"
-        result = tpc.row((icon, 4, '<'), (text, 20, '^'))
+        result = tpc.row((icon, 4, "<"), (text, 20, "^"))
         # Just check it has borders
         self.assertTrue(strip_visible(result).startswith("│ "))
         self.assertTrue(strip_visible(result).endswith(" │"))
@@ -703,21 +706,21 @@ class TestLayout(unittest.TestCase):
     def test_row_with_progress_bar_fits_width(self):
         """Progress bar should fit in row width."""
         bar = tpc.progress_bar(30.0, 100.0, 40)
-        result = tpc.row((bar, 40, '^'))
+        result = tpc.row((bar, 40, "^"))
         self.assertTrue(strip_visible(result).startswith("│ "))
         self.assertTrue(strip_visible(result).endswith(" │"))
 
     def test_row_with_volume_bar_fits_width(self):
         """Volume bar should fit in row width."""
         bar = tpc.volume_bar(50, 40)
-        result = tpc.row((bar, 40, '^'))
+        result = tpc.row((bar, 40, "^"))
         self.assertTrue(strip_visible(result).startswith("│ "))
         self.assertTrue(strip_visible(result).endswith(" │"))
 
     def test_row_all_slots_total_width(self):
         """Row contains icon and title content."""
         icon = tpc.overlay("▶")
-        result = tpc.row((icon, 4, '<'), ("Test Title", 10, '^'))
+        result = tpc.row((icon, 4, "<"), ("Test Title", 10, "^"))
 
         self.assertIn("▶", result)
         self.assertIn("Test Title", result)
@@ -751,6 +754,7 @@ class TestRenderUI(unittest.TestCase):
         # Use a StringIO to capture output
         import io
         import sys
+
         old_stdout = sys.stdout
         sys.stdout = io.StringIO()
         try:
@@ -777,6 +781,7 @@ class TestRenderUI(unittest.TestCase):
         tpc.state.album = ""
         import io
         import sys
+
         old_stdout = sys.stdout
         sys.stdout = io.StringIO()
         try:
@@ -797,6 +802,7 @@ class TestRenderUI(unittest.TestCase):
         tpc.state.album = "Test Album"
         import io
         import sys
+
         old_stdout = sys.stdout
         sys.stdout = io.StringIO()
         try:
@@ -815,6 +821,7 @@ class TestRenderUI(unittest.TestCase):
         tpc.state.album = "Test Album"
         import io
         import sys
+
         old_stdout = sys.stdout
         sys.stdout = io.StringIO()
         try:
@@ -833,6 +840,7 @@ class TestRenderUI(unittest.TestCase):
         tpc.state.album = ""
         import io
         import sys
+
         old_stdout = sys.stdout
         sys.stdout = io.StringIO()
         try:
@@ -856,6 +864,7 @@ class TestRenderUI(unittest.TestCase):
         tpc.state.album = "Test Album"
         import io
         import sys
+
         old_stdout = sys.stdout
         sys.stdout = io.StringIO()
         try:
@@ -875,6 +884,7 @@ class TestRenderUI(unittest.TestCase):
         tpc.state.album = ""
         import io
         import sys
+
         old_stdout = sys.stdout
         sys.stdout = io.StringIO()
         try:
@@ -896,39 +906,45 @@ class TestRenderUI(unittest.TestCase):
 
 class TestThemeResetWithBackground(unittest.TestCase):
     """Test that Theme.RESET includes background when TPCTL_BG is set."""
-    
+
     def test_reset_without_bg(self):
         """Without BG, RESET is just SGR 0."""
         # Reload module without BG
         import importlib
         import importlib.util
         import os
+
         # Remove BG env var
-        old_bg = os.environ.pop('TPCTL_BG', None)
+        old_bg = os.environ.pop("TPCTL_BG", None)
         try:
-            spec = importlib.util.spec_from_file_location('tpc2', '../tmux-player-ctl.py')
+            spec = importlib.util.spec_from_file_location(
+                "tpc2", "../tmux-player-ctl.py"
+            )
             tpc2 = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(tpc2)
             # Should be just \033[0m
-            self.assertEqual(tpc2.Theme.RESET, '\033[0m')
+            self.assertEqual(tpc2.Theme.RESET, "\033[0m")
         finally:
             if old_bg:
-                os.environ['TPCTL_BG'] = old_bg
-    
+                os.environ["TPCTL_BG"] = old_bg
+
     def test_reset_with_bg(self):
         """With BG set, RESET includes background color."""
         import importlib
         import importlib.util
         import os
-        os.environ['TPCTL_BG'] = '30;30;50'
+
+        os.environ["TPCTL_BG"] = "30;30;50"
         try:
-            spec = importlib.util.spec_from_file_location('tpc3', '../tmux-player-ctl.py')
+            spec = importlib.util.spec_from_file_location(
+                "tpc3", "../tmux-player-ctl.py"
+            )
             tpc3 = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(tpc3)
             # Should be \033[0m followed by background
-            self.assertEqual(tpc3.Theme.RESET, '\033[0m\033[48;2;30;30;50m')
+            self.assertEqual(tpc3.Theme.RESET, "\033[0m\033[48;2;30;30;50m")
         finally:
-            del os.environ['TPCTL_BG']
+            del os.environ["TPCTL_BG"]
 
 
 if __name__ == "__main__":
