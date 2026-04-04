@@ -543,7 +543,7 @@ def header_row() -> str:
         f"{status_icon:<2} {state.status.lower()}", status_color(state.status)
     )
 
-    player_name = f" {truncate(_format_player_name(state.player), player_w)} "
+    player_name = f" {truncate(_format_player_name(state.player), player_w-2)} "
 
     if len(available_players) > 1:
         switch_text = f"{colorize(ICONS['tab'], Theme.KEY_HINT):^2} switch"
@@ -651,10 +651,10 @@ def volume_row():
     end_w = state._end_time_w or 0
     vol_icon = f" {icon(_volume_icon(vol_pct)):^2}"
     bar_w = inner_w - start_w - 1 - 1 - end_w
-    bar = volume_bar(vol_pct, bar_w)
+    bar = volume_bar(vol_pct, max(0, bar_w))
     return row(
-        (vol_icon, start_w - 1, "<"),
-        (bar, bar_w, "^"),
+        (vol_icon, 3, "<"),
+        (bar, max(0, bar_w), "^"),
         (pct_text, end_w, ">"),
     )
 
