@@ -249,16 +249,48 @@ class TestHandleKeyVolume(unittest.TestCase):
         self.assertEqual(args[0][0], "volume")
         self.assertEqual(args[0][1], "0.0")
         self.assertEqual(tpc.state.volume, 0)
+        # Should store the pre-mute volume
+        self.assertEqual(tpc.state.pre_mute_volume, 75)
 
     @patch.object(tpc, 'run_playerctl')
-    def test_unmute_sets_volume_50(self, mock_run):
-        """Unmute (from 0) should set volume to 50."""
+    def test_unmute_restores_stored_volume(self, mock_run):
+        """Unmute should restore to stored pre-mute volume."""
         tpc.state.volume = 0
+        tpc.state.pre_mute_volume = 75
         tpc.handle_key("m", "")
         args = mock_run.call_args
         self.assertEqual(args[0][0], "volume")
-        self.assertEqual(args[0][1], "0.50")
+        self.assertEqual(args[0][1], "0.75")  # 75% as float
+        self.assertEqual(tpc.state.volume, 75)
+
+    @patch.object(tpc, 'run_playerctl')
+    def test_unmute_falls_back_to_50(self, mock_run):
+        """Unmute with no stored volume should fall back to 50."""
+        tpc.state.volume = 0
+        tpc.state.pre_mute_volume = 0  # No previous unmute
+        tpc.handle_key("m", "")
+        args = mock_run.call_args
+        self.assertEqual(args[0][0], "volume")
+        self.assertEqual(args[0][1], "0.50")  # Default 50%
         self.assertEqual(tpc.state.volume, 50)
+
+    @patch.object(tpc, 'run_playerctl')
+    def test_mute_then_unmute_restores_volume(self, mock_run):
+        """Mute then unmute cycle should restore original volume."""
+        tpc.state.volume = 80
+        tpc.state.pre_mute_volume = 50  # From previous unmute
+        
+        # Mute
+        tpc.handle_key("m", "")
+        self.assertEqual(tpc.state.volume, 0)
+        self.assertEqual(tpc.state.pre_mute_volume, 80)  # Stored before mute
+        
+        # Unmute
+        tpc.handle_key("m", "")
+        args = mock_run.call_args  # Get last call
+        self.assertEqual(args[0][0], "volume")
+        self.assertEqual(args[0][1], "0.80")  # 80% restored
+        self.assertEqual(tpc.state.volume, 80)
 
 
 class TestUpdateStateFromMetadata(unittest.TestCase):

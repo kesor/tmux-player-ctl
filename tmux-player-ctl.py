@@ -118,6 +118,7 @@ class PlayerState:
     loop: str = "None"
     shuffle: str = "false"
     dirty: bool = True
+    pre_mute_volume: int = 50  # Store volume before mute for restore on unmute
 
 state = PlayerState()
 
@@ -871,11 +872,15 @@ def handle_key(key: str, seq: str = "") -> None:
     elif key in {'m', 'M'}:
         # Mute/unmute (volume is int 0-100)
         if state.volume > 0:
+            # Mute: store current volume for restore
+            state.pre_mute_volume = state.volume
             run_playerctl("volume", "0.0")
             state.volume = 0
         else:
-            run_playerctl("volume", "0.50")
-            state.volume = 50
+            # Unmute: restore to pre-mute volume (or 50% if first mute)
+            restore_vol = state.pre_mute_volume if state.pre_mute_volume > 0 else 50
+            run_playerctl("volume", f"{restore_vol / 100:.2f}")
+            state.volume = restore_vol
     else:
         return
 
