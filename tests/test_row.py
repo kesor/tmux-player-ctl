@@ -771,7 +771,7 @@ class TestRenderUI(unittest.TestCase):
         self.assertIn("├", output)
 
     def test_render_ui_missing_album(self):
-        """Album missing - album row not rendered."""
+        """Album missing - empty row shown instead."""
         tpc.state.title = "Test Song"
         tpc.state.artist = "Test Artist"
         tpc.state.album = ""
@@ -784,9 +784,9 @@ class TestRenderUI(unittest.TestCase):
             output = sys.stdout.getvalue()
         finally:
             sys.stdout = old_stdout
-        # Album row IS present but empty
-        self.assertIn("Album:", output)
-        # Other rows should be present
+        # Album row is empty (no label)
+        self.assertNotIn("Album:", output)
+        # Track and Artist rows still have labels
         self.assertIn("Track:", output)
         self.assertIn("Artist:", output)
 
@@ -826,8 +826,51 @@ class TestRenderUI(unittest.TestCase):
         self.assertIn("Album:", output)
         self.assertIn("Track:", output)
 
+    def test_render_ui_empty_row_when_no_album(self):
+        """When album is missing, empty row takes its place (12 rows maintained)."""
+        tpc.state.title = "Test Song"
+        tpc.state.artist = "Test Artist"
+        tpc.state.album = ""
+        import io
+        import sys
+        old_stdout = sys.stdout
+        sys.stdout = io.StringIO()
+        try:
+            tpc.render_ui()
+            output = sys.stdout.getvalue()
+        finally:
+            sys.stdout = old_stdout
+        # No "Album:" label
+        self.assertNotIn("Album:", output)
+        # Track and Artist still visible
+        self.assertIn("Track:", output)
+        self.assertIn("Artist:", output)
+        # Count newlines to verify 12 rows
+        self.assertEqual(output.count('\n'), 12)
+
+    def test_render_ui_with_album_has_12_rows(self):
+        """With album present, still renders 12 rows."""
+        tpc.state.title = "Test Song"
+        tpc.state.artist = "Test Artist"
+        tpc.state.album = "Test Album"
+        import io
+        import sys
+        old_stdout = sys.stdout
+        sys.stdout = io.StringIO()
+        try:
+            tpc.render_ui()
+            output = sys.stdout.getvalue()
+        finally:
+            sys.stdout = old_stdout
+        # Album visible
+        self.assertIn("Album:", output)
+        self.assertIn("Track:", output)
+        self.assertIn("Artist:", output)
+        # Count newlines to verify 12 rows
+        self.assertEqual(output.count('\n'), 12)
+
     def test_render_ui_all_missing(self):
-        """All metadata missing - still renders all rows with labels."""
+        """All metadata missing - album empty, track/artist show labels."""
         tpc.state.title = ""
         tpc.state.artist = ""
         tpc.state.album = ""
@@ -840,8 +883,9 @@ class TestRenderUI(unittest.TestCase):
             output = sys.stdout.getvalue()
         finally:
             sys.stdout = old_stdout
-        # All info rows still present with labels
-        self.assertIn("Album:", output)
+        # Album row is empty (no label)
+        self.assertNotIn("Album:", output)
+        # Track and Artist still have labels
         self.assertIn("Track:", output)
         self.assertIn("Artist:", output)
         # And has structure
