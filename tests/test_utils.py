@@ -116,6 +116,14 @@ class TestMoveCursor(unittest.TestCase):
         self.assertEqual(output, "\033[5;10H")
 
 
+class TestDeadCodeRemoval(unittest.TestCase):
+    """Test that dead code has been removed."""
+
+    def test_no_cursor_move_pattern(self):
+        """CURSOR_MOVE_PATTERN should be removed (unused)."""
+        self.assertFalse(hasattr(tpc, "CURSOR_MOVE_PATTERN"))
+
+
 class TestResetState(unittest.TestCase):
     """Test reset_state() - resets player state."""
 

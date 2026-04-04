@@ -695,7 +695,6 @@ def move_cursor(row: int, col: int):
 
 
 ANSI_PATTERN = re.compile(r"\x1b\[[0-9;]*m")
-CURSOR_MOVE_PATTERN = re.compile(r"\x1b\[[0-9;]*[DCuCBAH]")
 
 
 def row(*slots) -> str:
