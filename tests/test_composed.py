@@ -404,59 +404,6 @@ class TestVolumeRow(unittest.TestCase):
 class TestToolbarRow(unittest.TestCase):
     """Test toolbar row - controls + key hints."""
 
-class TestTool(unittest.TestCase):
-    """Test tool() formatting function."""
-
-    def test_tool_single_char_highlight(self):
-        """Tool with single char highlight."""
-        result = tpc.tool("prev", "prev", "p")
-        self.assertIn("◀", result)
-        # Check individual letters remain
-        self.assertIn("r", result)
-        self.assertIn("e", result)
-        self.assertIn("v", result)
-
-    def test_tool_next_highlight(self):
-        """Next tool highlights 'n'."""
-        result = tpc.tool("next", "next", "n")
-        self.assertIn("e", result)
-        self.assertIn("x", result)
-        self.assertIn("t", result)
-
-    def test_tool_mute_highlight(self):
-        """Mute tool highlights 'm'."""
-        result = tpc.tool("vol-muted", "mute", "m")
-        self.assertIn("mute", result)
-
-    def test_tool_seek_highlights_both_arrows(self):
-        """Seek tool highlights both arrow symbols."""
-        result = tpc.tool("seek-left", "←→", "←")
-        self.assertIn("←", result)
-
-    def test_tool_volume_highlights_both_arrows(self):
-        """Volume tool highlights both arrow symbols."""
-        result = tpc.tool("vol-high", "↑↓", "↑")
-        self.assertIn("↑", result)
-
-    def test_tool_pause_highlights_space(self):
-        """Pause tool highlights leading space."""
-        result = tpc.tool("pause", " pause", " ")
-        self.assertIn("pause", result)
-
-    def test_tool_play_highlights_space(self):
-        """Play tool highlights leading space."""
-        result = tpc.tool("play", " play", " ")
-        self.assertIn("play", result)
-
-    def test_tool_close_highlights_esc(self):
-        """Close tool highlights 'esc/q'."""
-        result = tpc.tool("quit", "esc/q", "esc")
-        self.assertIn("/q", result)
-
-
-class TestToolbarRow(unittest.TestCase):
-    """Test toolbar row - controls + key hints."""
-
     def setUp(self):
         tpc.state = tpc.PlayerState()
         tpc.state.status = "Playing"
@@ -486,13 +433,6 @@ class TestToolbarRow(unittest.TestCase):
         result = tpc.toolbar_row()
         # Each tool should have highlight
         self.assertIn(tpc.Theme.KEY_HINT, result)
-
-    def test_toolbar_has_pause_hint_when_playing(self):
-        """Toolbar shows pause icon when playing."""
-        tpc.state.status = "Playing"
-        result = tpc.toolbar_row()
-        # When playing, shows ⏸ icon
-        self.assertIn("⏸", result)
 
     def test_toolbar_has_play_hint_when_paused(self):
         """Toolbar shows play hint when paused."""
@@ -555,13 +495,6 @@ class TestToolbarRow(unittest.TestCase):
         # When paused, shows play tool
         self.assertIn("play", visible)
 
-    def test_toolbar_pause_icon_when_playing(self):
-        """Pause tool shows icon when playing."""
-        tpc.state.status = "Playing"
-        result = tpc.toolbar_row()
-        # When playing, shows pause icon (not text)
-        self.assertIn("⏸", result)
-
     def test_toolbar_prev_tool_has_color_and_correct_text(self):
         """Prev tool has ANSI color and correct visible text."""
         tpc.state.status = "Paused"
@@ -570,7 +503,7 @@ class TestToolbarRow(unittest.TestCase):
         self.assertIn(tpc.Theme.KEY_HINT, result)
         # Visible text is correct after stripping ANSI
         visible = strip_visible(result)
-        self.assertIn("⏮ prev", visible)
+        self.assertIn("prev", visible)
 
     def test_toolbar_next_tool_has_color_and_correct_text(self):
         """Next tool has ANSI color and correct visible text."""
@@ -580,7 +513,7 @@ class TestToolbarRow(unittest.TestCase):
         self.assertIn(tpc.Theme.KEY_HINT, result)
         # Visible text is correct after stripping ANSI
         visible = strip_visible(result)
-        self.assertIn("⏭ next", visible)
+        self.assertIn("next", visible)
 
     def test_toolbar_close_tool_has_color_and_correct_text(self):
         """Close tool has ANSI color and correct visible text."""

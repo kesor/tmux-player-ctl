@@ -612,20 +612,13 @@ def _volume_icon(vol: int) -> str:
         return "vol-high"
 
 
-def tool(icon_name: str, text: str, highlight: str) -> str:
-    """Format a toolbar tool: icon + text with specified char(s) highlighted."""
-    icon_part = icon(icon_name)
-    highlighted = colorize(highlight, Theme.KEY_HINT)
-    return f"{icon_part}{text.replace(highlight, highlighted, 1)}"
-
-
 # Known widths for toolbar tools (overlay(2) + icon(1) + space(1) + text)
 TOOL_SEEK = 7    # "←→ seek"
 TOOL_VOL = 9      # "↑↓ volume"
 TOOL_MUTE = 4     # "mute"
-TOOL_PAUSE = 8    # "⏸ pause" 
-TOOL_PREV = 7     # "⏮  prev"
-TOOL_NEXT = 7     # "⏭  next"
+TOOL_PAUSE = 7    # "_ pause" 
+TOOL_PREV = 4     # "prev"
+TOOL_NEXT = 4     # "next"
 TOOL_CLOSE = 11   # "esc/q close"
 
 
@@ -639,12 +632,12 @@ def toolbar_row():
     mute = f"{colorize('m', Theme.KEY_HINT)}ute"
     
     if state.status == "Playing":
-        play_pause = tool("pause", "␣pause", '␣')
+        play_pause = f"{colorize('␣', Theme.KEY_HINT)} pause"
     else:
-        play_pause = tool("play", "␣ play", '␣')
+        play_pause = f"{colorize('␣', Theme.KEY_HINT)} play "
     
-    prev = tool("skip-start", " prev", "p")
-    next_ = tool("skip-end", " next", "n")
+    prev = f"{colorize('p', Theme.KEY_HINT)}rev"
+    next_ = f"{colorize('n', Theme.KEY_HINT)}ext"
     close = f"{colorize('esc/q', Theme.KEY_HINT)} close"
     
     # Combine all tools with 2-space separator
