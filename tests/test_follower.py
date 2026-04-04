@@ -94,24 +94,24 @@ class TestUpdateStateFromMetadata(unittest.TestCase):
     def setUp(self):
         """Reset state before each test."""
         # Reset state to defaults
-        tpc.state.player = ""
-        tpc.state.status = ""
-        tpc.state.title = ""
-        tpc.state.artist = ""
-        tpc.state.album = ""
-        tpc.state.position = 0.0
-        tpc.state.length = 0.0
-        tpc.state.volume = 0
-        tpc.state.loop = "None"
-        tpc.state.shuffle = "false"
-        tpc.state.dirty = False
-        tpc.last_command_time = 0
+        tpc.s.state.player = ""
+        tpc.s.state.status = ""
+        tpc.s.state.title = ""
+        tpc.s.state.artist = ""
+        tpc.s.state.album = ""
+        tpc.s.state.position = 0.0
+        tpc.s.state.length = 0.0
+        tpc.s.state.volume = 0
+        tpc.s.state.loop = "None"
+        tpc.s.state.shuffle = "false"
+        tpc.s.state.dirty = False
+        tpc.s.last_command_time = 0
 
     def test_update_state_sets_position(self):
         """update_state_from_metadata should set position."""
         data = {"position": 2.5}
         tpc.update_state_from_metadata(data)
-        self.assertEqual(tpc.state.position, 2.5)
+        self.assertEqual(tpc.s.state.position, 2.5)
 
     def test_update_state_sets_all_fields(self):
         """update_state_from_metadata should set all provided fields."""
@@ -121,33 +121,33 @@ class TestUpdateStateFromMetadata(unittest.TestCase):
             "position": 1.23,
         }
         tpc.update_state_from_metadata(data)
-        self.assertEqual(tpc.state.title, "New Song")
-        self.assertEqual(tpc.state.artist, "New Artist")
-        self.assertEqual(tpc.state.position, 1.23)
+        self.assertEqual(tpc.s.state.title, "New Song")
+        self.assertEqual(tpc.s.state.artist, "New Artist")
+        self.assertEqual(tpc.s.state.position, 1.23)
 
     def test_update_state_marks_dirty(self):
         """update_state_from_metadata should mark dirty when changed."""
         data = {"title": "New"}
         tpc.update_state_from_metadata(data)
-        self.assertTrue(tpc.state.dirty)
+        self.assertTrue(tpc.s.state.dirty)
 
     def test_update_state_no_dirty_when_unchanged(self):
         """update_state_from_metadata should not mark dirty when no changes."""
-        tpc.state.title = "Same"
-        tpc.state.dirty = False
+        tpc.s.state.title = "Same"
+        tpc.s.state.dirty = False
         data = {"title": "Same"}
         tpc.update_state_from_metadata(data)
-        self.assertFalse(tpc.state.dirty)
+        self.assertFalse(tpc.s.state.dirty)
 
     def test_update_state_debounce_ignores_recent(self):
         """update_state_from_metadata should debounce recent commands."""
         import time
 
-        tpc.last_command_time = time.time()
-        tpc.state.dirty = False
+        tpc.s.last_command_time = time.time()
+        tpc.s.state.dirty = False
         data = {"position": 99.0}
         tpc.update_state_from_metadata(data)
-        self.assertNotEqual(tpc.state.position, 99.0)  # Should be debounced
+        self.assertNotEqual(tpc.s.state.position, 99.0)  # Should be debounced
 
 
 class TestMetadataFollowerProvidesPosition(unittest.TestCase):
@@ -155,10 +155,10 @@ class TestMetadataFollowerProvidesPosition(unittest.TestCase):
 
     def setUp(self):
         """Reset state before each test."""
-        tpc.state.position = 0.0
-        tpc.state.length = 0.0
-        tpc.state.title = ""
-        tpc.last_command_time = 0
+        tpc.s.state.position = 0.0
+        tpc.s.state.length = 0.0
+        tpc.s.state.title = ""
+        tpc.s.last_command_time = 0
 
     def test_metadata_update_flow_provides_position(self):
         """Full flow: parse -> update_state should set position."""
@@ -170,8 +170,8 @@ class TestMetadataFollowerProvidesPosition(unittest.TestCase):
 
         # Update state
         tpc.update_state_from_metadata(parsed)
-        self.assertEqual(tpc.state.position, 1.5)
-        self.assertEqual(tpc.state.length, 300.0)
+        self.assertEqual(tpc.s.state.position, 1.5)
+        self.assertEqual(tpc.s.state.length, 300.0)
 
 
 class TestPositionFollowerRedundancy(unittest.TestCase):
@@ -195,12 +195,12 @@ class TestPositionFollowerRedundancy(unittest.TestCase):
 
     def test_metadata_follower_updates_state_position(self):
         """Metadata follower parsing + update should set state.position."""
-        tpc.state.position = 0.0
-        tpc.last_command_time = 0
+        tpc.s.state.position = 0.0
+        tpc.s.last_command_time = 0
         raw = make_metadata(position="2500000")  # 2.5 seconds
         parsed = tpc.parse_metadata(raw)
         tpc.update_state_from_metadata(parsed)
-        self.assertEqual(tpc.state.position, 2.5)
+        self.assertEqual(tpc.s.state.position, 2.5)
 
 
 class TestNoDirectPipeReading(unittest.TestCase):
@@ -212,20 +212,20 @@ class TestNoDirectPipeReading(unittest.TestCase):
 
     def setUp(self):
         """Reset state before each test."""
-        tpc.state.position = 0.0
-        tpc.last_command_time = 0
+        tpc.s.state.position = 0.0
+        tpc.s.last_command_time = 0
 
     def test_state_position_is_primary_interface(self):
         """state.position should be the primary way to access position."""
-        tpc.state.position = 1.234
+        tpc.s.state.position = 1.234
         # Position should be accessible directly from state
-        self.assertEqual(tpc.state.position, 1.234)
+        self.assertEqual(tpc.s.state.position, 1.234)
 
     def test_update_state_from_metadata_sets_position(self):
         """Position should be settable via update_state_from_metadata."""
-        tpc.state.position = 0.0
+        tpc.s.state.position = 0.0
         tpc.update_state_from_metadata({"position": 5.5})
-        self.assertEqual(tpc.state.position, 5.5)
+        self.assertEqual(tpc.s.state.position, 5.5)
 
 
 class TestPositionFollowerRemoval(unittest.TestCase):

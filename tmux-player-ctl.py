@@ -30,11 +30,6 @@ class Config:
     SEEK_SECONDS = 10
 
 
-# Player tracking
-current_player: str = ""
-available_players: List[str] = []
-current_player_idx: int = -1
-
 _playerctl_pool = ThreadPoolExecutor(max_workers=2, thread_name_prefix="pctl")
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -116,7 +111,22 @@ class PlayerState:
     )
 
 
-state = PlayerState()
+class PlayerTracker:
+    """Holds all player-related global state. Single instance 's' at module level."""
+
+    current_player: str = ""
+    available_players: List[str] = []
+    current_player_idx: int = -1
+    state: "PlayerState" = None  # type: ignore[assignment]
+    last_command_time: float = 0.0
+    meta_proc: Optional["subprocess.Popen"] = None
+
+    def __init__(self) -> None:
+        self.state = PlayerState()
+
+
+s = PlayerTracker()
+
 
 # Ordered field names (39 fields, matching METADATA_FORMAT)
 METADATA_FIELDS = [
@@ -211,7 +221,6 @@ METADATA_FORMAT = "\n" + "\n".join(
 # Debounce follower updates after commands (in seconds)
 COMMAND_DEBOUNCE = 0.3
 COMMAND_COOLDOWN = 0.05  # Minimum time between async calls
-last_command_time = 0.0
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Shutdown handling
@@ -284,6 +293,7 @@ def cleanup_proc(proc: Optional[subprocess.Popen]) -> None:
 
 def render_ui():
     """Render the full UI to stdout."""
+    global s
     # Build all rows
     rows = [
         border_top(),
@@ -306,7 +316,7 @@ def render_ui():
         sys.stdout.write(line)
 
     sys.stdout.flush()
-    state.dirty = False
+    s.state.dirty = False
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -338,17 +348,17 @@ def get_best_player(players: List[str]) -> Optional[str]:
     """Select best player: Playing > Paused > first available."""
     if not players:
         return None
-    global current_player
+    global s
     for player in players:
-        prev, current_player = current_player, player
+        prev, s.current_player = s.current_player, player
         status = run_playerctl("status")
-        current_player = prev
+        s.current_player = prev
         if status and status.strip() == "Playing":
             return player
     for player in players:
-        prev, current_player = current_player, player
+        prev, s.current_player = s.current_player, player
         status = run_playerctl("status")
-        current_player = prev
+        s.current_player = prev
         if status and status.strip() == "Paused":
             return player
     return players[0]
@@ -370,33 +380,35 @@ def _playerctl_subprocess(
 
 
 def player_args() -> List[str]:
-    return ["-p", current_player] if current_player else []
+    global s
+    return ["-p", s.current_player] if s.current_player else []
 
 
 def reset_state():
     """Reset all state fields with a fresh PlayerState."""
-    global state
-    state = PlayerState()
-    state.status = "No player"  # Override default "" with explicit no-player message
+    global s
+    s.state = PlayerState()
+    s.state.status = "No player"  # Override default "" with explicit no-player message
 
 
-def switch_player(meta_proc) -> Optional[subprocess.Popen]:
+def switch_player() -> Optional[subprocess.Popen]:
     """Switch to next player. Returns new metadata follower process."""
-    global current_player, current_player_idx, available_players
+    global s
 
-    cleanup_proc(meta_proc)
+    cleanup_proc(s.meta_proc)
 
-    available_players = get_available_players()
-    if not available_players:
+    s.available_players = get_available_players()
+    if not s.available_players:
         reset_state()
+        s.meta_proc = None
         return None
 
-    current_player_idx = (current_player_idx + 1) % len(available_players)
-    current_player = available_players[current_player_idx]
+    s.current_player_idx = (s.current_player_idx + 1) % len(s.available_players)
+    s.current_player = s.available_players[s.current_player_idx]
 
-    new_meta_proc = start_metadata_follower()
+    s.meta_proc = start_metadata_follower()
 
-    if new_meta_proc is None:
+    if s.meta_proc is None:
         reset_state()
         return None
 
@@ -406,11 +418,11 @@ def switch_player(meta_proc) -> Optional[subprocess.Popen]:
         update_state_from_metadata(data)
     else:
         # Player exists but has no metadata - still show the player name
-        state.player = current_player
-        state.status = "Stopped"
-        state.dirty = True
+        s.state.player = s.current_player
+        s.state.status = "Stopped"
+        s.state.dirty = True
 
-    return new_meta_proc
+    return s.meta_proc
 
 
 def run_playerctl(*args) -> str:
@@ -621,19 +633,20 @@ def _format_player_name(player: str) -> str:
 
 def header_row() -> str:
     """Header row with status, player name, and switch."""
+    global s
     status_w = 12  # 2 icon + 1 space + 9 max "recording"
     switch_w = 9  # 2 icon + 1 space + 6 "switch"
     inner_w = Config.UI_WIDTH - 4
     player_w = inner_w - status_w - switch_w + 2
 
-    status_icon = icon(_status_icon(state.status))
+    status_icon = icon(_status_icon(s.state.status))
     status_text = colorize(
-        f"{status_icon:<2} {state.status.lower()}", status_color(state.status)
+        f"{status_icon:<2} {s.state.status.lower()}", status_color(s.state.status)
     )
 
-    player_name = f" {truncate(_format_player_name(state.player), player_w - 2)} "
+    player_name = f" {truncate(_format_player_name(s.state.player), player_w - 2)} "
 
-    if len(available_players) > 1:
+    if len(s.available_players) > 1:
         switch_text = f"{colorize(icon('tab'), Theme.KEY_HINT):^2} switch"
     else:
         switch_text = ""
@@ -659,33 +672,37 @@ def _info_row(label: str, value: str):
 
 
 def album_row():
-    return _info_row("Album:", state.album)
+    global s
+    return _info_row("Album:", s.state.album)
 
 
 def track_row():
-    return _info_row("Track:", state.title)
+    global s
+    return _info_row("Track:", s.state.title)
 
 
 def artist_row():
-    return _info_row("Artist:", state.artist)
+    global s
+    return _info_row("Artist:", s.state.artist)
 
 
 def progress_row():
     """Progress row: time + bar + time."""
+    global s
     inner = Config.UI_WIDTH - 4
-    start = format_time(state.position)  # elapsed time: MM:SS
-    end = format_time(state.length)  # total time: shows hours if needed
+    start = format_time(s.state.position)  # elapsed time: MM:SS
+    end = format_time(s.state.length)  # total time: shows hours if needed
     # Save time widths for volume row alignment
-    state._start_time_w = len(start)
-    state._end_time_w = len(end)
+    s.state._start_time_w = len(start)
+    s.state._end_time_w = len(end)
     bar_w = (
-        inner - state._start_time_w - 1 - 1 - state._end_time_w
+        inner - s.state._start_time_w - 1 - 1 - s.state._end_time_w
     )  # inner - start - gap - gap - end
-    bar = progress_bar(state.position, state.length, bar_w)
+    bar = progress_bar(s.state.position, s.state.length, bar_w)
     return row(
-        (start, state._start_time_w, "<"),
+        (start, s.state._start_time_w, "<"),
         (bar, bar_w, "^"),
-        (end, state._end_time_w, ">"),
+        (end, s.state._end_time_w, ">"),
     )
 
 
@@ -703,6 +720,7 @@ def _volume_icon(vol: int) -> str:
 
 def toolbar_row():
     """Toolbar with controls."""
+    global s
     inner = Config.UI_WIDTH - 4
 
     # Build each tool
@@ -710,7 +728,7 @@ def toolbar_row():
     vol = f"{colorize(icon('vol-change'), Theme.KEY_HINT)} volume"  # 9
     mute = f"{colorize('m', Theme.KEY_HINT)}ute"  # 4
 
-    if state.status == "Playing":
+    if s.state.status == "Playing":
         play_pause = f"{colorize(icon('toggle-play'), Theme.KEY_HINT)} pause"  # 7
     else:
         play_pause = f"{colorize(icon('toggle-play'), Theme.KEY_HINT)} play "
@@ -732,11 +750,12 @@ def toolbar_row():
 
 def volume_row():
     """Volume row: icon + bar + percentage."""
+    global s
     inner_w = Config.UI_WIDTH - 4
-    vol_pct = state.volume  # already int 0-100
+    vol_pct = s.state.volume  # already int 0-100
     pct_text = f"{vol_pct}%"
-    start_w = state._start_time_w or 0
-    end_w = state._end_time_w or 0
+    start_w = s.state._start_time_w or 0
+    end_w = s.state._end_time_w or 0
     vol_icon = f" {icon(_volume_icon(vol_pct)):^2}"
     bar_w = inner_w - start_w - 1 - 1 - end_w
     bar = volume_bar(vol_pct, max(0, bar_w))
@@ -749,17 +768,18 @@ def volume_row():
 
 def update_state_from_metadata(data: dict):
     """Update state from parsed metadata dict."""
+    global s
 
     # Debounce: skip if update came too soon after our optimistic update
-    if time.time() - last_command_time < COMMAND_DEBOUNCE:
+    if time.time() - s.last_command_time < COMMAND_DEBOUNCE:
         return
     changed = False
     for key, value in data.items():
-        if getattr(state, key, None) != value:
-            setattr(state, key, value)
+        if getattr(s.state, key, None) != value:
+            setattr(s.state, key, value)
             changed = True
     if changed:
-        state.dirty = True
+        s.state.dirty = True
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -879,10 +899,10 @@ def run_playerctl_async(*args) -> None:
 
 
 def handle_key(key: str, seq: str = "") -> None:
-    global last_command_time, shutdown_requested
+    global s, shutdown_requested
 
     now = time.time()
-    if key != "q" and key != "Q" and key != "\x1b" and now - last_command_time < COMMAND_COOLDOWN:
+    if key != "q" and key != "Q" and key != "\x1b" and now - s.last_command_time < COMMAND_COOLDOWN:
         return  # Ignore rapid repeats
     # Quit bypasses cooldown
     if key in {"q", "Q"} or (key == "\x1b" and not seq):
@@ -890,44 +910,44 @@ def handle_key(key: str, seq: str = "") -> None:
         shutdown_requested = True
         return
 
-    if now - last_command_time < COMMAND_COOLDOWN:
+    if now - s.last_command_time < COMMAND_COOLDOWN:
         return  # Ignore rapid repeats
-    last_command_time = now
+    s.last_command_time = now
 
     if key == "\x1b":
         if seq == "[A":
             # Volume up: volume is int 0-100
-            vol = min(100, state.volume + 5)
+            vol = min(100, s.state.volume + 5)
             # Format volume as float for playerctl
             vol_arg = f"{vol / 100:.2f}"
             run_playerctl_async("volume", vol_arg)
-            state.volume = vol
+            s.state.volume = vol
         elif seq == "[B":
             # Volume down: volume is int 0-100
-            vol = max(0, state.volume - 5)
+            vol = max(0, s.state.volume - 5)
             # Format volume as float for playerctl
             vol_arg = f"{vol / 100:.2f}"
             run_playerctl_async("volume", vol_arg)
-            state.volume = vol
+            s.state.volume = vol
         elif seq == "[C":
             # Seek forward: optimistic update
-            state.position = min(state.length, state.position + Config.SEEK_SECONDS)
+            s.state.position = min(s.state.length, s.state.position + Config.SEEK_SECONDS)
             run_playerctl_async("position", f"+{Config.SEEK_SECONDS}")
         elif seq == "[D":
             # Seek backward: optimistic update
-            state.position = max(0, state.position - Config.SEEK_SECONDS)
+            s.state.position = max(0, s.state.position - Config.SEEK_SECONDS)
             run_playerctl_async("position", f"-{Config.SEEK_SECONDS}")
         else:
             return
-        state.dirty = True
+        s.state.dirty = True
         return
 
     if key == " ":
         # Optimistic update
-        if state.status == "Playing":
-            state.status = "Paused"
+        if s.state.status == "Playing":
+            s.state.status = "Paused"
         else:
-            state.status = "Playing"
+            s.state.status = "Playing"
         run_playerctl_async("play-pause")
     elif key in {"n", "N"}:
         run_playerctl_async("next")
@@ -936,28 +956,28 @@ def handle_key(key: str, seq: str = "") -> None:
     elif key in {"s", "S"}:
         run_playerctl_async("shuffle", "Toggle")
     elif key in {"l", "L"}:
-        if state.loop == "None":
+        if s.state.loop == "None":
             run_playerctl_async("loop", "Track")
-        elif state.loop == "Track":
+        elif s.state.loop == "Track":
             run_playerctl_async("loop", "Playlist")
         else:
             run_playerctl_async("loop", "None")
     elif key in {"m", "M"}:
         # Mute/unmute (volume is int 0-100)
-        if state.volume > 0:
+        if s.state.volume > 0:
             # Mute: store current volume for restore
-            state.pre_mute_volume = state.volume
+            s.state.pre_mute_volume = s.state.volume
             run_playerctl_async("volume", "0.0")
-            state.volume = 0
+            s.state.volume = 0
         else:
             # Unmute: restore to pre-mute volume (or 50% if first mute)
-            restore_vol = state.pre_mute_volume if state.pre_mute_volume > 0 else 50
+            restore_vol = s.state.pre_mute_volume if s.state.pre_mute_volume > 0 else 50
             run_playerctl_async("volume", f"{restore_vol / 100:.2f}")
-            state.volume = restore_vol
+            s.state.volume = restore_vol
     else:
         return
 
-    state.dirty = True
+    s.state.dirty = True
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -966,7 +986,7 @@ def handle_key(key: str, seq: str = "") -> None:
 
 
 def main():
-    global current_player, current_player_idx, available_players
+    global s
 
     check_playerctl()  # Exit early if playerctl not available
     setup_signals()
@@ -979,18 +999,18 @@ def main():
     sys.stdout.flush()
 
     try:
-        available_players = get_available_players()
-        current_player = get_best_player(available_players) or ""
-        if current_player:
-            current_player_idx = available_players.index(current_player)
-            state.player = current_player
-            state.dirty = True
+        s.available_players = get_available_players()
+        s.current_player = get_best_player(s.available_players) or ""
+        if s.current_player:
+            s.current_player_idx = s.available_players.index(s.current_player)
+            s.state.player = s.current_player
+            s.state.dirty = True
         else:
-            current_player_idx = -1
-            state.status = "No MPRIS player"
-            state.dirty = True
+            s.current_player_idx = -1
+            s.state.status = "No MPRIS player"
+            s.state.dirty = True
 
-        meta_proc = start_metadata_follower() if current_player else None
+        s.meta_proc = start_metadata_follower() if s.current_player else None
 
         clear_screen()
 
@@ -1015,8 +1035,8 @@ def main():
 
         def build_select_list():
             fds = []
-            if meta_proc and meta_proc.stdout:
-                fds.append(meta_proc.stdout)
+            if s.meta_proc and s.meta_proc.stdout:
+                fds.append(s.meta_proc.stdout)
             if stdin_fd is not None:
                 fds.append(stdin_fd)
             return fds
@@ -1028,10 +1048,10 @@ def main():
                 continue
             readable, _, _ = select.select(fds, [], [], 0.5)
 
-            if meta_proc and meta_proc.stdout in readable:
+            if s.meta_proc and s.meta_proc.stdout in readable:
                 # Read metadata - METADATA_FORMAT has 39 fields joined by \n
                 try:
-                    data = os.read(meta_proc.stdout.fileno(), 4096)
+                    data = os.read(s.meta_proc.stdout.fileno(), 4096)
                     if data:
                         decoded = data.decode("utf-8", errors="replace")
                         # Split on field boundary \n@N@ to handle embedded newlines
@@ -1051,9 +1071,9 @@ def main():
                     pass
 
                 # Check if process died
-                if meta_proc.poll() is not None:
-                    cleanup_proc(meta_proc)
-                    meta_proc = start_metadata_follower() if current_player else None
+                if s.meta_proc.poll() is not None:
+                    cleanup_proc(s.meta_proc)
+                    s.meta_proc = start_metadata_follower() if s.current_player else None
 
             if stdin_fd is not None and stdin_fd in readable:
                 try:
@@ -1063,7 +1083,7 @@ def main():
                     ch = c.decode("utf-8", errors="replace")
 
                     if ch == "\t":
-                        meta_proc = switch_player(meta_proc)
+                        switch_player()
                     elif ch == "\x1b":
                         r, _, _ = select.select([stdin_fd], [], [], 0.02)
                         if stdin_fd in r:
@@ -1088,7 +1108,7 @@ def main():
                 except OSError:
                     pass
 
-            if state.dirty:
+            if s.state.dirty:
                 render_ui()
 
     finally:

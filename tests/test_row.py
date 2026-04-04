@@ -657,26 +657,26 @@ class TestRenderUI(unittest.TestCase):
 
     def setUp(self):
         # Save original state
-        self._orig_players = tpc.available_players
-        self._orig_state = tpc.state
+        self._orig_players = tpc.s.available_players
+        self._orig_state = tpc.s.state
         # Create fresh state
-        tpc.state = tpc.PlayerState()
-        tpc.state.player = "spotify"
-        tpc.state.status = "Playing"
-        tpc.state.position = 60.0
-        tpc.state.length = 180.0
-        tpc.state.volume = 75
-        tpc.available_players = ["spotify"]
+        tpc.s.state = tpc.PlayerState()
+        tpc.s.state.player = "spotify"
+        tpc.s.state.status = "Playing"
+        tpc.s.state.position = 60.0
+        tpc.s.state.length = 180.0
+        tpc.s.state.volume = 75
+        tpc.s.available_players = ["spotify"]
 
     def tearDown(self):
-        tpc.state = self._orig_state
-        tpc.available_players = self._orig_players
+        tpc.s.state = self._orig_state
+        tpc.s.available_players = self._orig_players
 
     def test_render_ui_all_fields_present(self):
         """All metadata fields present - all info rows rendered."""
-        tpc.state.title = "Test Song"
-        tpc.state.artist = "Test Artist"
-        tpc.state.album = "Test Album"
+        tpc.s.state.title = "Test Song"
+        tpc.s.state.artist = "Test Artist"
+        tpc.s.state.album = "Test Album"
         # Use a StringIO to capture output
         import io
         import sys
@@ -702,9 +702,9 @@ class TestRenderUI(unittest.TestCase):
 
     def test_render_ui_missing_album(self):
         """Album missing - empty row shown instead."""
-        tpc.state.title = "Test Song"
-        tpc.state.artist = "Test Artist"
-        tpc.state.album = ""
+        tpc.s.state.title = "Test Song"
+        tpc.s.state.artist = "Test Artist"
+        tpc.s.state.album = ""
         import io
         import sys
 
@@ -723,9 +723,9 @@ class TestRenderUI(unittest.TestCase):
 
     def test_render_ui_missing_title(self):
         """Title missing - track row still shown with label."""
-        tpc.state.title = ""
-        tpc.state.artist = "Test Artist"
-        tpc.state.album = "Test Album"
+        tpc.s.state.title = ""
+        tpc.s.state.artist = "Test Artist"
+        tpc.s.state.album = "Test Album"
         import io
         import sys
 
@@ -742,9 +742,9 @@ class TestRenderUI(unittest.TestCase):
 
     def test_render_ui_missing_artist(self):
         """Artist missing - artist row still shown with label."""
-        tpc.state.title = "Test Song"
-        tpc.state.artist = ""
-        tpc.state.album = "Test Album"
+        tpc.s.state.title = "Test Song"
+        tpc.s.state.artist = ""
+        tpc.s.state.album = "Test Album"
         import io
         import sys
 
@@ -761,9 +761,9 @@ class TestRenderUI(unittest.TestCase):
 
     def test_render_ui_empty_row_when_no_album(self):
         """When album is missing, padding row added at end (no Album label)."""
-        tpc.state.title = "Test Song"
-        tpc.state.artist = "Test Artist"
-        tpc.state.album = ""
+        tpc.s.state.title = "Test Song"
+        tpc.s.state.artist = "Test Artist"
+        tpc.s.state.album = ""
         import io
         import sys
 
@@ -785,9 +785,9 @@ class TestRenderUI(unittest.TestCase):
 
     def test_render_ui_with_album(self):
         """With album present, all info rows visible."""
-        tpc.state.title = "Test Song"
-        tpc.state.artist = "Test Artist"
-        tpc.state.album = "Test Album"
+        tpc.s.state.title = "Test Song"
+        tpc.s.state.artist = "Test Artist"
+        tpc.s.state.album = "Test Album"
         import io
         import sys
 
@@ -805,9 +805,9 @@ class TestRenderUI(unittest.TestCase):
 
     def test_render_ui_all_missing(self):
         """All metadata missing - all info rows still shown with labels."""
-        tpc.state.title = ""
-        tpc.state.artist = ""
-        tpc.state.album = ""
+        tpc.s.state.title = ""
+        tpc.s.state.artist = ""
+        tpc.s.state.album = ""
         import io
         import sys
 

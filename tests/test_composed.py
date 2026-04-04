@@ -93,10 +93,10 @@ class TestHeaderRow(unittest.TestCase):
     """Test header row - icon + status + player name + switch."""
 
     def setUp(self):
-        tpc.state = tpc.PlayerState()
-        tpc.state.player = "testplayer"
-        tpc.state.status = "Playing"
-        tpc.available_players = ["testplayer", "otherplayer"]
+        tpc.s.state = tpc.PlayerState()
+        tpc.s.state.player = "testplayer"
+        tpc.s.state.status = "Playing"
+        tpc.s.available_players = ["testplayer", "otherplayer"]
 
     def test_header_has_status_icon(self):
         """Header includes status icon."""
@@ -120,13 +120,13 @@ class TestHeaderRow(unittest.TestCase):
 
     def test_header_no_switch_when_single_player(self):
         """Header has no switch when only one player."""
-        tpc.available_players = ["onlyplayer"]
+        tpc.s.available_players = ["onlyplayer"]
         result = tpc.header_row()
         self.assertNotIn("switch", result.lower())
 
     def test_header_truncates_long_player_name(self):
         """Long player name is truncated."""
-        tpc.state.player = "very_very_very_long_player_name_abc_def_ghi_jkl_mno"
+        tpc.s.state.player = "very_very_very_long_player_name_abc_def_ghi_jkl_mno"
         result = tpc.header_row()
         # Should have ellipsis where truncation happened
         self.assertIn("…", result)
@@ -142,10 +142,10 @@ class TestInfoRow(unittest.TestCase):
     """Test info rows - Album, Track, Artist with labels."""
 
     def setUp(self):
-        tpc.state = tpc.PlayerState()
-        tpc.state.title = "Test Song"
-        tpc.state.artist = "Test Artist"
-        tpc.state.album = "Test Album"
+        tpc.s.state = tpc.PlayerState()
+        tpc.s.state.title = "Test Song"
+        tpc.s.state.artist = "Test Artist"
+        tpc.s.state.album = "Test Album"
 
     def test_album_row_has_label(self):
         """Album row has 'Album:' label."""
@@ -188,21 +188,21 @@ class TestInfoRow(unittest.TestCase):
 
     def test_empty_album_returns_row(self):
         """Empty album returns row with label."""
-        tpc.state.album = ""
+        tpc.s.state.album = ""
         result = tpc.album_row()
         self.assertIsNotNone(result)
         self.assertIn("Album:", result)
 
     def test_empty_track_returns_row(self):
         """Empty track returns row with label."""
-        tpc.state.title = ""
+        tpc.s.state.title = ""
         result = tpc.track_row()
         self.assertIsNotNone(result)
         self.assertIn("Track:", result)
 
     def test_empty_artist_returns_row(self):
         """Empty artist returns row with label."""
-        tpc.state.artist = ""
+        tpc.s.state.artist = ""
         result = tpc.artist_row()
         self.assertIsNotNone(result)
         self.assertIn("Artist:", result)
@@ -212,9 +212,9 @@ class TestProgressRow(unittest.TestCase):
     """Test progress row - time + bar + time."""
 
     def setUp(self):
-        tpc.state = tpc.PlayerState()
-        tpc.state.position = 60.0
-        tpc.state.length = 180.0
+        tpc.s.state = tpc.PlayerState()
+        tpc.s.state.position = 60.0
+        tpc.s.state.length = 180.0
 
     def test_progress_row_has_start_time(self):
         """Progress row shows start time."""
@@ -241,77 +241,77 @@ class TestProgressRow(unittest.TestCase):
 
     def test_progress_zero_length(self):
         """Zero length shows '0:00' for both times."""
-        tpc.state.length = 0.0
-        tpc.state.position = 0.0
+        tpc.s.state.length = 0.0
+        tpc.s.state.position = 0.0
         result = tpc.progress_row()
         # Both times should be 0:00
         self.assertIn("0:00", result)
 
     def test_progress_short_track(self):
         """Short track (30 seconds) shows correct times."""
-        tpc.state.position = 0.0
-        tpc.state.length = 30.0
+        tpc.s.state.position = 0.0
+        tpc.s.state.length = 30.0
         result = tpc.progress_row()
         self.assertIn("0:00", result)  # start
         self.assertIn("0:30", result)  # end
 
     def test_progress_long_track(self):
         """Long track (10 minutes) shows correct times."""
-        tpc.state.position = 0.0
-        tpc.state.length = 600.0
+        tpc.s.state.position = 0.0
+        tpc.s.state.length = 600.0
         result = tpc.progress_row()
         self.assertIn("0:00", result)  # start
         self.assertIn("10:00", result)  # end
 
     def test_progress_very_long_track(self):
         """Very long track (1 hour) shows correct times."""
-        tpc.state.position = 0.0
-        tpc.state.length = 3600.0
+        tpc.s.state.position = 0.0
+        tpc.s.state.length = 3600.0
         result = tpc.progress_row()
         self.assertIn("0:00", result)  # start
         self.assertIn("1:00:00", result)  # end
 
     def test_progress_90_minute_track(self):
         """90 minute track shows 1:30:00 for total."""
-        tpc.state.position = 874.0  # 14:34 elapsed
-        tpc.state.length = 5400.0  # 90 minutes
+        tpc.s.state.position = 874.0  # 14:34 elapsed
+        tpc.s.state.length = 5400.0  # 90 minutes
         result = tpc.progress_row()
         self.assertIn("14:34", result)  # elapsed is MM:SS
         self.assertIn("1:30:00", result)  # total shows hours
 
     def test_progress_at_start(self):
         """Position at start shows 0:00."""
-        tpc.state.position = 0.0
-        tpc.state.length = 180.0
+        tpc.s.state.position = 0.0
+        tpc.s.state.length = 180.0
         result = tpc.progress_row()
         self.assertIn("0:00", result)
 
     def test_progress_at_end(self):
         """Position at end shows same time for start and end."""
-        tpc.state.position = 180.0
-        tpc.state.length = 180.0
+        tpc.s.state.position = 180.0
+        tpc.s.state.length = 180.0
         result = tpc.progress_row()
         self.assertIn("3:00", result)
 
     def test_progress_at_half(self):
         """Position at half shows midpoint time."""
-        tpc.state.position = 90.0
-        tpc.state.length = 180.0
+        tpc.s.state.position = 90.0
+        tpc.s.state.length = 180.0
         result = tpc.progress_row()
         self.assertIn("1:30", result)  # 90 seconds = 1:30
 
     def test_progress_bar_filled_char(self):
         """Progress bar has filled character."""
-        tpc.state.position = 90.0
-        tpc.state.length = 180.0
+        tpc.s.state.position = 90.0
+        tpc.s.state.length = 180.0
         result = tpc.progress_row()
         plain = ANSI.sub("", result)
         self.assertIn("━", plain)  # filled bar char
 
     def test_progress_bar_empty_char(self):
         """Progress bar has empty character."""
-        tpc.state.position = 0.0
-        tpc.state.length = 180.0
+        tpc.s.state.position = 0.0
+        tpc.s.state.length = 180.0
         result = tpc.progress_row()
         plain = ANSI.sub("", result)
         self.assertIn("━", plain)  # should still have bar
@@ -321,8 +321,8 @@ class TestVolumeRow(unittest.TestCase):
     """Test volume row - icon + bar + percentage."""
 
     def setUp(self):
-        tpc.state = tpc.PlayerState()
-        tpc.state.volume = 50
+        tpc.s.state = tpc.PlayerState()
+        tpc.s.state.volume = 50
 
     def test_volume_row_has_icon(self):
         """Volume row includes volume icon."""
@@ -350,31 +350,31 @@ class TestVolumeRow(unittest.TestCase):
 
     def test_volume_zero_percent(self):
         """Volume 0 shows '0%'."""
-        tpc.state.volume = 0
+        tpc.s.state.volume = 0
         result = tpc.volume_row()
         self.assertIn("0%", result)
 
     def test_volume_hundred_percent(self):
         """Volume 100 shows '100%'."""
-        tpc.state.volume = 100
+        tpc.s.state.volume = 100
         result = tpc.volume_row()
         self.assertIn("100%", result)
 
     def test_volume_quarter(self):
         """Volume 25% shows correct percentage."""
-        tpc.state.volume = 25
+        tpc.s.state.volume = 25
         result = tpc.volume_row()
         self.assertIn("25%", result)
 
     def test_volume_three_quarter(self):
         """Volume 75% shows correct percentage."""
-        tpc.state.volume = 75
+        tpc.s.state.volume = 75
         result = tpc.volume_row()
         self.assertIn("75%", result)
 
     def test_volume_bar_character(self):
         """Volume bar has block characters."""
-        tpc.state.volume = 50
+        tpc.s.state.volume = 50
         result = tpc.volume_row()
         plain = ANSI.sub("", result)
         self.assertIn("█", plain)
@@ -382,7 +382,7 @@ class TestVolumeRow(unittest.TestCase):
 
     def test_volume_full_bar(self):
         """Volume 100% bar is mostly filled."""
-        tpc.state.volume = 100
+        tpc.s.state.volume = 100
         result = tpc.volume_row()
         plain = ANSI.sub("", result)
         # Should have more filled than empty
@@ -390,27 +390,27 @@ class TestVolumeRow(unittest.TestCase):
 
     def test_volume_precision_low(self):
         """Volume 0.49999 should show ~50%."""
-        tpc.state.volume = 50
+        tpc.s.state.volume = 50
         result = tpc.volume_row()
         # Should round to 50%
         self.assertIn("50%", result)
 
     def test_volume_precision_high(self):
         """Volume 51 should show ~51%."""
-        tpc.state.volume = 51
+        tpc.s.state.volume = 51
         result = tpc.volume_row()
         # Should show 51%
         self.assertIn("51%", result)
 
     def test_volume_precision_boundary(self):
         """Volume 24 should show 24%."""
-        tpc.state.volume = 24
+        tpc.s.state.volume = 24
         result = tpc.volume_row()
         self.assertIn("24%", result)
 
     def test_volume_very_low(self):
         """Volume 1% shows '1%'."""
-        tpc.state.volume = 1
+        tpc.s.state.volume = 1
         result = tpc.volume_row()
         self.assertIn("1%", result)
 
@@ -419,8 +419,8 @@ class TestToolbarRow(unittest.TestCase):
     """Test toolbar row - controls + key hints."""
 
     def setUp(self):
-        tpc.state = tpc.PlayerState()
-        tpc.state.status = "Playing"
+        tpc.s.state = tpc.PlayerState()
+        tpc.s.state.status = "Playing"
 
     def test_toolbar_has_seek_hint(self):
         """Toolbar has seek hint."""
@@ -450,7 +450,7 @@ class TestToolbarRow(unittest.TestCase):
 
     def test_toolbar_has_play_hint_when_paused(self):
         """Toolbar shows play hint when paused."""
-        tpc.state.status = "Paused"
+        tpc.s.state.status = "Paused"
         result = tpc.toolbar_row()
         visible = strip_visible(result)
         # When paused, shows play icon
@@ -469,14 +469,14 @@ class TestToolbarRow(unittest.TestCase):
 
     def test_toolbar_all_tools_have_highlights(self):
         """All toolbar tools have highlights (when paused)."""
-        tpc.state.status = "Paused"
+        tpc.s.state.status = "Paused"
         result = tpc.toolbar_row()
         # seek, vol, mute, play, prev, next, close = 7 highlights
         self.assertEqual(result.count(tpc.Theme.KEY_HINT), 7)
 
     def test_toolbar_seek_tool_has_color_and_correct_text(self):
         """Seek tool has ANSI color and correct visible text."""
-        tpc.state.status = "Paused"
+        tpc.s.state.status = "Paused"
         result = tpc.toolbar_row()
         # Has color
         self.assertIn(tpc.Theme.KEY_HINT, result)
@@ -486,7 +486,7 @@ class TestToolbarRow(unittest.TestCase):
 
     def test_toolbar_vol_tool_has_color_and_correct_text(self):
         """Volume tool has ANSI color and correct visible text."""
-        tpc.state.status = "Paused"
+        tpc.s.state.status = "Paused"
         result = tpc.toolbar_row()
         # Has color
         self.assertIn(tpc.Theme.KEY_HINT, result)
@@ -496,14 +496,14 @@ class TestToolbarRow(unittest.TestCase):
 
     def test_toolbar_mute_tool_correct_text(self):
         """Mute tool has correct visible text."""
-        tpc.state.status = "Paused"
+        tpc.s.state.status = "Paused"
         result = tpc.toolbar_row()
         visible = strip_visible(result)
         self.assertIn("mute", visible)
 
     def test_toolbar_pause_tool_correct_text(self):
         """Pause tool has correct visible text (shows 'play' when paused)."""
-        tpc.state.status = "Paused"
+        tpc.s.state.status = "Paused"
         result = tpc.toolbar_row()
         visible = strip_visible(result)
         # When paused, shows play tool
@@ -511,7 +511,7 @@ class TestToolbarRow(unittest.TestCase):
 
     def test_toolbar_prev_tool_has_color_and_correct_text(self):
         """Prev tool has ANSI color and correct visible text."""
-        tpc.state.status = "Paused"
+        tpc.s.state.status = "Paused"
         result = tpc.toolbar_row()
         # Has color
         self.assertIn(tpc.Theme.KEY_HINT, result)
@@ -521,7 +521,7 @@ class TestToolbarRow(unittest.TestCase):
 
     def test_toolbar_next_tool_has_color_and_correct_text(self):
         """Next tool has ANSI color and correct visible text."""
-        tpc.state.status = "Paused"
+        tpc.s.state.status = "Paused"
         result = tpc.toolbar_row()
         # Has color
         self.assertIn(tpc.Theme.KEY_HINT, result)
@@ -531,7 +531,7 @@ class TestToolbarRow(unittest.TestCase):
 
     def test_toolbar_close_tool_has_color_and_correct_text(self):
         """Close tool has ANSI color and correct visible text."""
-        tpc.state.status = "Paused"
+        tpc.s.state.status = "Paused"
         result = tpc.toolbar_row()
         # Has color
         self.assertIn(tpc.Theme.KEY_HINT, result)
@@ -544,16 +544,16 @@ class TestAllRowsWidth(unittest.TestCase):
     """Test that all rows have borders."""
 
     def setUp(self):
-        tpc.state = tpc.PlayerState()
-        tpc.state.player = "testplayer"
-        tpc.state.status = "Playing"
-        tpc.state.title = "Test Song"
-        tpc.state.artist = "Test Artist"
-        tpc.state.album = "Test Album"
-        tpc.state.position = 60.0
-        tpc.state.length = 180.0
-        tpc.state.volume = 50
-        tpc.available_players = ["player1", "player2"]
+        tpc.s.state = tpc.PlayerState()
+        tpc.s.state.player = "testplayer"
+        tpc.s.state.status = "Playing"
+        tpc.s.state.title = "Test Song"
+        tpc.s.state.artist = "Test Artist"
+        tpc.s.state.album = "Test Album"
+        tpc.s.state.position = 60.0
+        tpc.s.state.length = 180.0
+        tpc.s.state.volume = 50
+        tpc.s.available_players = ["player1", "player2"]
 
     def test_all_composed_rows_have_borders(self):
         """All composed rows have borders."""

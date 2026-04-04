@@ -118,7 +118,7 @@ class TestRunPlayerctl(unittest.TestCase):
     @patch("subprocess.run")
     def test_includes_player_arg_when_set(self, mock_run):
         """Should include -p player when current_player is set."""
-        tpc.current_player = "spotify"
+        tpc.s.current_player = "spotify"
         mock_run.return_value = MagicMock(stdout="ok\n", returncode=0)
 
         tpc.run_playerctl("status")
@@ -127,7 +127,7 @@ class TestRunPlayerctl(unittest.TestCase):
         self.assertIn("-p", call_args)
         self.assertIn("spotify", call_args)
 
-        tpc.current_player = ""
+        tpc.s.current_player = ""
 
     @patch("subprocess.run")
     def test_returns_stripped_output(self, mock_run):
@@ -190,7 +190,7 @@ class TestGetAvailablePlayers(unittest.TestCase):
     @patch("subprocess.run")
     def test_ignores_current_player(self, mock_run):
         """Should not pass -p flag even when current_player is set."""
-        tpc.current_player = "spotify"
+        tpc.s.current_player = "spotify"
         mock_run.return_value = MagicMock(stdout="spotify\nvlc\n", returncode=0)
 
         tpc.get_available_players()
@@ -206,18 +206,18 @@ class TestHandleKeyVolume(unittest.TestCase):
 
     def setUp(self):
         # Create fresh state
-        self._orig_state = tpc.state
-        self._orig_last_cmd = tpc.last_command_time
-        tpc.state = tpc.PlayerState()
-        tpc.state.volume = 50
-        tpc.state.position = 60.0
-        tpc.state.length = 180.0
-        tpc.state.status = "Playing"
-        tpc.last_command_time = 0
+        self._orig_state = tpc.s.state
+        self._orig_last_cmd = tpc.s.last_command_time
+        tpc.s.state = tpc.PlayerState()
+        tpc.s.state.volume = 50
+        tpc.s.state.position = 60.0
+        tpc.s.state.length = 180.0
+        tpc.s.state.status = "Playing"
+        tpc.s.last_command_time = 0
 
     def tearDown(self):
-        tpc.state = self._orig_state
-        tpc.last_command_time = self._orig_last_cmd
+        tpc.s.state = self._orig_state
+        tpc.s.last_command_time = self._orig_last_cmd
 
     @patch.object(tpc, "run_playerctl_async")
     def test_volume_up_sends_float(self, mock_run):
@@ -230,7 +230,7 @@ class TestHandleKeyVolume(unittest.TestCase):
         vol_str = args[0][1]
         self.assertIn(".", vol_str)  # Is a float
         # Volume should have increased
-        self.assertEqual(tpc.state.volume, 55)
+        self.assertEqual(tpc.s.state.volume, 55)
 
     @patch.object(tpc, "run_playerctl_async")
     def test_volume_down_sends_float(self, mock_run):
@@ -241,111 +241,111 @@ class TestHandleKeyVolume(unittest.TestCase):
         vol_str = args[0][1]
         self.assertIn(".", vol_str)  # Is a float
         # Volume should have decreased
-        self.assertEqual(tpc.state.volume, 45)
+        self.assertEqual(tpc.s.state.volume, 45)
 
     @patch.object(tpc, "run_playerctl_async")
     def test_volume_up_at_max_stays_100(self, mock_run):
         """Volume up at 100 stays at 100."""
-        tpc.state.volume = 100
+        tpc.s.state.volume = 100
         tpc.handle_key("\x1b", "[A")
-        self.assertEqual(tpc.state.volume, 100)
+        self.assertEqual(tpc.s.state.volume, 100)
 
     @patch.object(tpc, "run_playerctl_async")
     def test_volume_down_at_min_stays_0(self, mock_run):
         """Volume down at 0 stays at 0."""
-        tpc.state.volume = 0
+        tpc.s.state.volume = 0
         tpc.handle_key("\x1b", "[B")
-        self.assertEqual(tpc.state.volume, 0)
+        self.assertEqual(tpc.s.state.volume, 0)
 
     @patch.object(tpc, "run_playerctl_async")
     def test_mute_sets_volume_0(self, mock_run):
         """Mute should set volume to 0."""
-        tpc.state.volume = 75
+        tpc.s.state.volume = 75
         tpc.handle_key("m", "")
         args = mock_run.call_args
         self.assertEqual(args[0][0], "volume")
         self.assertEqual(args[0][1], "0.0")
-        self.assertEqual(tpc.state.volume, 0)
+        self.assertEqual(tpc.s.state.volume, 0)
         # Should store the pre-mute volume
-        self.assertEqual(tpc.state.pre_mute_volume, 75)
+        self.assertEqual(tpc.s.state.pre_mute_volume, 75)
 
     @patch.object(tpc, "run_playerctl_async")
     def test_unmute_restores_stored_volume(self, mock_run):
         """Unmute should restore to stored pre-mute volume."""
-        tpc.state.volume = 0
-        tpc.state.pre_mute_volume = 75
+        tpc.s.state.volume = 0
+        tpc.s.state.pre_mute_volume = 75
         tpc.handle_key("m", "")
         args = mock_run.call_args
         self.assertEqual(args[0][0], "volume")
         self.assertEqual(args[0][1], "0.75")  # 75% as float
-        self.assertEqual(tpc.state.volume, 75)
+        self.assertEqual(tpc.s.state.volume, 75)
 
     @patch.object(tpc, "run_playerctl_async")
     def test_unmute_falls_back_to_50(self, mock_run):
         """Unmute with no stored volume should fall back to 50."""
-        tpc.state.volume = 0
-        tpc.state.pre_mute_volume = 0  # No previous unmute
+        tpc.s.state.volume = 0
+        tpc.s.state.pre_mute_volume = 0  # No previous unmute
         tpc.handle_key("m", "")
         args = mock_run.call_args
         self.assertEqual(args[0][0], "volume")
         self.assertEqual(args[0][1], "0.50")  # Default 50%
-        self.assertEqual(tpc.state.volume, 50)
+        self.assertEqual(tpc.s.state.volume, 50)
 
     @patch.object(tpc, "run_playerctl_async")
     def test_mute_then_unmute_restores_volume(self, mock_run):
         """Mute then unmute cycle should restore original volume."""
-        tpc.state.volume = 80
-        tpc.state.pre_mute_volume = 50  # From previous unmute
+        tpc.s.state.volume = 80
+        tpc.s.state.pre_mute_volume = 50  # From previous unmute
 
         # Mute
         tpc.handle_key("m", "")
-        self.assertEqual(tpc.state.volume, 0)
-        self.assertEqual(tpc.state.pre_mute_volume, 80)  # Stored before mute
+        self.assertEqual(tpc.s.state.volume, 0)
+        self.assertEqual(tpc.s.state.pre_mute_volume, 80)  # Stored before mute
 
         # Unmute (reset cooldown to allow rapid call)
-        tpc.last_command_time = 0
+        tpc.s.last_command_time = 0
         tpc.handle_key("m", "")
         args = mock_run.call_args  # Get last call
         self.assertEqual(args[0][0], "volume")
         self.assertEqual(args[0][1], "0.80")  # 80% restored
-        self.assertEqual(tpc.state.volume, 80)
+        self.assertEqual(tpc.s.state.volume, 80)
 
 
 class TestUpdateStateFromMetadata(unittest.TestCase):
     """Test update_state_from_metadata() sets dirty flag correctly."""
 
     def setUp(self):
-        self._orig_state = tpc.state
-        self._orig_last_cmd = tpc.last_command_time
-        tpc.state = tpc.PlayerState()
-        tpc.state.title = "Old Title"
-        tpc.state.artist = "Old Artist"
-        tpc.state.position = 0.0
+        self._orig_state = tpc.s.state
+        self._orig_last_cmd = tpc.s.last_command_time
+        tpc.s.state = tpc.PlayerState()
+        tpc.s.state.title = "Old Title"
+        tpc.s.state.artist = "Old Artist"
+        tpc.s.state.position = 0.0
         # Reset command time to avoid debounce
-        tpc.last_command_time = 0.0
+        tpc.s.last_command_time = 0.0
 
     def tearDown(self):
-        tpc.state = self._orig_state
-        tpc.last_command_time = self._orig_last_cmd
+        tpc.s.state = self._orig_state
+        tpc.s.last_command_time = self._orig_last_cmd
 
     def test_sets_dirty_when_values_change(self):
         """Should set dirty=True when values actually change."""
-        tpc.state.dirty = False
+        tpc.s.state.dirty = False
         data = {"title": "New Title", "artist": "Old Artist"}
         tpc.update_state_from_metadata(data)
-        self.assertTrue(tpc.state.dirty)
-        self.assertEqual(tpc.state.title, "New Title")
+        self.assertTrue(tpc.s.state.dirty)
+        self.assertEqual(tpc.s.state.title, "New Title")
 
     def test_clears_dirty_when_no_change(self):
         """Should not set dirty when values are the same."""
-        tpc.state.dirty = False
+        tpc.s.state.dirty = False
         data = {"title": "Old Title", "artist": "Old Artist"}
         tpc.update_state_from_metadata(data)
-        self.assertFalse(tpc.state.dirty)
+        self.assertFalse(tpc.s.state.dirty)
 
     def test_updates_all_fields(self):
         """Should update all fields from metadata dict."""
-        tpc.state.dirty = False
+        tpc.s.state.dirty = False
         data = {
             "title": "New Title",
             "artist": "New Artist",
@@ -354,11 +354,11 @@ class TestUpdateStateFromMetadata(unittest.TestCase):
             "volume": 75,
         }
         tpc.update_state_from_metadata(data)
-        self.assertEqual(tpc.state.title, "New Title")
-        self.assertEqual(tpc.state.artist, "New Artist")
-        self.assertEqual(tpc.state.album, "New Album")
-        self.assertEqual(tpc.state.status, "Playing")
-        self.assertEqual(tpc.state.volume, 75)
+        self.assertEqual(tpc.s.state.title, "New Title")
+        self.assertEqual(tpc.s.state.artist, "New Artist")
+        self.assertEqual(tpc.s.state.album, "New Album")
+        self.assertEqual(tpc.s.state.status, "Playing")
+        self.assertEqual(tpc.s.state.volume, 75)
 
 
 class TestParsePositionFollower(unittest.TestCase):

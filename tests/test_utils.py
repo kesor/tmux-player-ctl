@@ -65,21 +65,21 @@ class TestPlayerArgs(unittest.TestCase):
     """Test player_args() - returns playerctl arguments."""
 
     def setUp(self):
-        self._orig = tpc.current_player
-        tpc.current_player = ""
+        self._orig = tpc.s.current_player
+        tpc.s.current_player = ""
 
     def tearDown(self):
-        tpc.current_player = self._orig
+        tpc.s.current_player = self._orig
 
     def test_no_player_returns_empty(self):
         """No player returns empty list."""
-        tpc.current_player = ""
+        tpc.s.current_player = ""
         result = tpc.player_args()
         self.assertEqual(result, [])
 
     def test_with_player_returns_p_flag(self):
         """With player returns -p flag."""
-        tpc.current_player = "spotify"
+        tpc.s.current_player = "spotify"
         result = tpc.player_args()
         self.assertEqual(result, ["-p", "spotify"])
 
@@ -165,7 +165,7 @@ class TestHandleKeyQuit(unittest.TestCase):
     def setUp(self):
         self._orig = tpc.shutdown_requested
         tpc.shutdown_requested = False
-        tpc.last_command_time = 0
+        tpc.s.last_command_time = 0
 
     def tearDown(self):
         tpc.shutdown_requested = self._orig
@@ -231,66 +231,66 @@ class TestResetStateFull(unittest.TestCase):
     """Test reset_state() - resets player state."""
 
     def setUp(self):
-        self._orig = tpc.state
-        tpc.state = tpc.PlayerState()
+        self._orig = tpc.s.state
+        tpc.s.state = tpc.PlayerState()
 
     def tearDown(self):
-        tpc.state = self._orig
+        tpc.s.state = self._orig
 
     def test_resets_title(self):
         """Should reset title to empty string."""
-        tpc.state.title = "Old Title"
+        tpc.s.state.title = "Old Title"
         tpc.reset_state()
-        self.assertEqual(tpc.state.title, "")
+        self.assertEqual(tpc.s.state.title, "")
 
     def test_resets_artist(self):
         """Should reset artist to empty string."""
-        tpc.state.artist = "Old Artist"
+        tpc.s.state.artist = "Old Artist"
         tpc.reset_state()
-        self.assertEqual(tpc.state.artist, "")
+        self.assertEqual(tpc.s.state.artist, "")
 
     def test_resets_album(self):
         """Should reset album to empty string."""
-        tpc.state.album = "Old Album"
+        tpc.s.state.album = "Old Album"
         tpc.reset_state()
-        self.assertEqual(tpc.state.album, "")
+        self.assertEqual(tpc.s.state.album, "")
 
     def test_resets_position(self):
         """Should reset position to 0."""
-        tpc.state.position = 100.0
+        tpc.s.state.position = 100.0
         tpc.reset_state()
-        self.assertEqual(tpc.state.position, 0.0)
+        self.assertEqual(tpc.s.state.position, 0.0)
 
     def test_resets_status(self):
         """Should reset status to 'No player'."""
-        tpc.state.status = "Playing"
+        tpc.s.state.status = "Playing"
         tpc.reset_state()
-        self.assertEqual(tpc.state.status, "No player")
+        self.assertEqual(tpc.s.state.status, "No player")
 
     def test_sets_dirty_true(self):
         """Should set dirty to True."""
-        tpc.state.dirty = False
+        tpc.s.state.dirty = False
         tpc.reset_state()
-        self.assertTrue(tpc.state.dirty)
+        self.assertTrue(tpc.s.state.dirty)
 
     def test_resets_pre_mute_volume(self):
         """Should reset pre_mute_volume to default (50)."""
-        tpc.state.pre_mute_volume = 75
+        tpc.s.state.pre_mute_volume = 75
         tpc.reset_state()
-        self.assertEqual(tpc.state.pre_mute_volume, 50)
+        self.assertEqual(tpc.s.state.pre_mute_volume, 50)
 
     def test_uses_fresh_player_state(self):
         """reset_state() creates a fresh PlayerState to avoid stale fields."""
-        tpc.state.title = "Old Title"
-        tpc.state.pre_mute_volume = 75
-        tpc.state.artist = "Old Artist"
+        tpc.s.state.title = "Old Title"
+        tpc.s.state.pre_mute_volume = 75
+        tpc.s.state.artist = "Old Artist"
         tpc.reset_state()
         # All fields should match fresh PlayerState defaults
         fresh = tpc.PlayerState()
-        self.assertEqual(tpc.state.title, fresh.title)
-        self.assertEqual(tpc.state.pre_mute_volume, fresh.pre_mute_volume)
-        self.assertEqual(tpc.state.artist, fresh.artist)
-        self.assertEqual(tpc.state.status, "No player")  # reset_state sets this
+        self.assertEqual(tpc.s.state.title, fresh.title)
+        self.assertEqual(tpc.s.state.pre_mute_volume, fresh.pre_mute_volume)
+        self.assertEqual(tpc.s.state.artist, fresh.artist)
+        self.assertEqual(tpc.s.state.status, "No player")  # reset_state sets this
 
 
 if __name__ == "__main__":
