@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Test suite for UI components: truncate(), row(), overlay(), icon(), colorize(), parse_metadata().
+Test suite for UI components: truncate(), row(), icon(), colorize(), parse_metadata().
 """
 
 import unittest
@@ -135,11 +135,11 @@ class TestRow(unittest.TestCase):
         self.assertTrue(strip_visible(result).endswith(" │"))
         self.assertIn("\x1b[92m", result)
 
-    def test_row_with_icon_overlay(self):
-        icon_overlay = tpc.overlay("▶")
-        result = tpc.row((icon_overlay, 4, "<"), ("Title", 10, "^"))
+    def test_row_with_icon_and_text(self):
+        icon = tpc.icon("play")
+        result = tpc.row((f"{icon:<4}", 4, "<"), (f"{'Title':<10}", 10, "^"))
         self.assertTrue(strip_visible(result).startswith("│ "))
-        self.assertIn("▶", result)
+        self.assertIn("⏵", result)
         self.assertIn("Title", result)
 
     def test_row_with_volume_bar_content(self):
@@ -286,40 +286,6 @@ class TestFormatTime(unittest.TestCase):
         self.assertEqual(result, "0:00")
 
 
-class TestOverlay(unittest.TestCase):
-    """Test overlay() - fixed-width slot mechanics only."""
-
-    def test_overlay_returns_spaces_back_save_content_restore(self):
-        result = tpc.overlay("▶")
-        self.assertTrue(result.startswith("  "))  # default width=2
-        self.assertIn("\x1b[2D", result)
-        self.assertIn("\x1b7", result)
-        self.assertIn("▶", result)
-        self.assertIn("\x1b[0m", result)
-        self.assertIn("\x1b8", result)
-
-    def test_overlay_returns_content_unchanged(self):
-        result = tpc.overlay("▶")
-        self.assertIn("▶", result)
-
-
-class TestOverlayIcon(unittest.TestCase):
-    """Test overlay() with custom widths."""
-
-    def test_overlay_icon_format(self):
-        result = tpc.overlay("▶", 4)
-        self.assertTrue(result.startswith("    "))
-        self.assertIn("\x1b[4D", result)
-        self.assertIn("▶", result)
-        self.assertIn("\x1b8", result)
-
-    def test_overlay_icon_custom_width(self):
-        result = tpc.overlay("▶", 6)
-        self.assertTrue(result.startswith("      "))  # 6 spaces
-        self.assertIn("\x1b[6D", result)
-        self.assertIn("\x1b8", result)
-
-
 class TestColorize(unittest.TestCase):
     """Test colorize() - adds ANSI color to content."""
 
@@ -329,117 +295,79 @@ class TestColorize(unittest.TestCase):
 
 
 class TestIcon(unittest.TestCase):
-    """Test icon() - single function returning fixed-width overlays by name."""
-
-    # VS15 (\uFE0E) forces text presentation, not emoji
+    """Test icon() - returns raw symbol from ICONS by name."""
 
     def test_icon_play(self):
         result = tpc.icon("play")
-        self.assertIn("\u23f5\ufe0e", result)  # ⏵
-        self.assertTrue(result.startswith("  "))
+        self.assertEqual(result, tpc.ICONS["play"])
 
     def test_icon_pause(self):
         result = tpc.icon("pause")
-        self.assertIn("⏸\ufe0e", result)
-        self.assertTrue(result.startswith("  "))
+        self.assertEqual(result, tpc.ICONS["pause"])
 
     def test_icon_stop(self):
         result = tpc.icon("stop")
-        self.assertIn("■\ufe0e", result)
-        self.assertTrue(result.startswith("  "))
+        self.assertEqual(result, tpc.ICONS["stop"])
 
     def test_icon_play_pause(self):
         result = tpc.icon("play-pause")
-        self.assertIn("⏯\ufe0e", result)
-        self.assertTrue(result.startswith("  "))
+        self.assertEqual(result, tpc.ICONS["play-pause"])
 
     def test_icon_prev(self):
         result = tpc.icon("prev")
-        self.assertIn("◀\ufe0e", result)
-        self.assertTrue(result.startswith("  "))
+        self.assertEqual(result, tpc.ICONS["prev"])
 
     def test_icon_seek_left(self):
         result = tpc.icon("seek-left")
-        self.assertIn("⏪\ufe0e", result)
-        self.assertTrue(result.startswith("  "))
+        self.assertEqual(result, tpc.ICONS["seek-left"])
 
     def test_icon_seek_right(self):
         result = tpc.icon("seek-right")
-        self.assertIn("⏩\ufe0e", result)
-        self.assertTrue(result.startswith("  "))
+        self.assertEqual(result, tpc.ICONS["seek-right"])
 
     def test_icon_next(self):
         result = tpc.icon("next")
-        self.assertIn("⏭\ufe0e", result)
-        self.assertTrue(result.startswith("  "))
+        self.assertEqual(result, tpc.ICONS["next"])
 
     def test_icon_skip_start(self):
         result = tpc.icon("skip-start")
-        self.assertIn("⏮\ufe0e", result)
-        self.assertTrue(result.startswith("  "))
+        self.assertEqual(result, tpc.ICONS["skip-start"])
 
     def test_icon_skip_end(self):
         result = tpc.icon("skip-end")
-        self.assertIn("⏭\ufe0e", result)
-        self.assertTrue(result.startswith("  "))
+        self.assertEqual(result, tpc.ICONS["skip-end"])
 
     def test_icon_eject(self):
         result = tpc.icon("eject")
-        self.assertIn("⏏\ufe0e", result)
-        self.assertTrue(result.startswith("  "))
+        self.assertEqual(result, tpc.ICONS["eject"])
 
     def test_icon_vol_muted(self):
         result = tpc.icon("vol-muted")
-        self.assertTrue(result.startswith("  "))
-        self.assertIn("\ufe0e", result)
+        self.assertEqual(result, tpc.ICONS["vol-muted"])
 
     def test_icon_vol_low(self):
         result = tpc.icon("vol-low")
-        self.assertTrue(result.startswith("  "))
-        self.assertIn("\ufe0e", result)
+        self.assertEqual(result, tpc.ICONS["vol-low"])
 
     def test_icon_vol_med(self):
         result = tpc.icon("vol-med")
-        self.assertTrue(result.startswith("  "))
-        self.assertIn("\ufe0e", result)
+        self.assertEqual(result, tpc.ICONS["vol-med"])
 
     def test_icon_vol_high(self):
         result = tpc.icon("vol-high")
-        self.assertTrue(result.startswith("  "))
-        self.assertIn("\ufe0e", result)
+        self.assertEqual(result, tpc.ICONS["vol-high"])
 
     def test_icon_shuffle(self):
         result = tpc.icon("shuffle")
-        self.assertTrue(result.startswith("  "))
-        self.assertIn("\ufe0e", result)
+        self.assertEqual(result, tpc.ICONS["shuffle"])
 
     def test_icon_repeat(self):
         result = tpc.icon("repeat")
-        self.assertTrue(result.startswith("  "))
-        self.assertIn("\ufe0e", result)
+        self.assertEqual(result, tpc.ICONS["repeat"])
 
     def test_icon_repeat_one(self):
         result = tpc.icon("repeat-one")
-        self.assertTrue(result.startswith("  "))
-        self.assertIn("\ufe0e", result)
-
-    def test_icon_with_custom_width(self):
-        """Icon accepts custom width parameter."""
-        result = tpc.icon("play", width=5)
-        self.assertTrue(result.startswith("     "))  # 5 spaces
-        self.assertIn("\u23f5\ufe0e", result)  # ⏵
-
-    def test_icon_with_width_4(self):
-        """Icon with width 4 matches time display width."""
-        result = tpc.icon("vol-high", width=4)
-        self.assertTrue(result.startswith("    "))  # 4 spaces
-        self.assertIn("🔊\ufe0e", result)
-
-    def test_icon_default_width_without_param(self):
-        """Icon uses default width when no param provided."""
-        result_default = tpc.icon("play")
-        result_explicit = tpc.icon("play", width=None)
-        self.assertEqual(result_default, result_explicit)
+        self.assertEqual(result, tpc.ICONS["repeat-one"])
 
 
 def make_metadata(**kwargs):
@@ -695,10 +623,10 @@ class TestLayout(unittest.TestCase):
     """Test layout concerns - positioning and width."""
 
     def test_row_with_icon_and_text_fits_width(self):
-        """Icon overlay + text should fit in row width."""
-        icon = tpc.overlay("▶")
+        """Icon + text should fit in row width."""
+        icon = tpc.icon("play")
         text = "Test Song Title"
-        result = tpc.row((icon, 4, "<"), (text, 20, "^"))
+        result = tpc.row((f"{icon:<4}", 4, "<"), (f"{text:<20}", 20, "^"))
         # Just check it has borders
         self.assertTrue(strip_visible(result).startswith("│ "))
         self.assertTrue(strip_visible(result).endswith(" │"))
@@ -719,10 +647,10 @@ class TestLayout(unittest.TestCase):
 
     def test_row_all_slots_total_width(self):
         """Row contains icon and title content."""
-        icon = tpc.overlay("▶")
-        result = tpc.row((icon, 4, "<"), ("Test Title", 10, "^"))
+        icon = tpc.icon("play")
+        result = tpc.row((f"{icon:<4}", 4, "<"), (f"{'Test Title':<10}", 10, "^"))
 
-        self.assertIn("▶", result)
+        self.assertIn("⏵", result)
         self.assertIn("Test Title", result)
 
 

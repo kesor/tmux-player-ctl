@@ -68,42 +68,9 @@ ICONS = {
     "repeat-one": "\U0001f502\ufe0e",  # 🔂
 }
 
-# Icon widths (visual cell width - use 2 for all for consistency)
-ICON_WIDTHS = {
-    "play": 2,
-    "pause": 2,
-    "stop": 2,
-    "play-pause": 2,
-    "tab": 2,
-    "prev": 2,
-    "seek-left": 2,
-    "seek-right": 2,
-    "next": 2,
-    "skip-start": 2,
-    "skip-end": 2,
-    "eject": 2,
-    "vol-muted": 2,
-    "vol-low": 2,
-    "vol-med": 2,
-    "vol-high": 2,
-    "shuffle": 2,
-    "repeat": 2,
-    "repeat-one": 2,
-}
-
-DEFAULT_ICON_WIDTH = 2
-
-
-def icon(name: str, width: Optional[int] = None) -> str:
-    """Return an icon wrapped in an overlay."""
-    if name not in ICONS:
-        symbol = "?"
-    else:
-        symbol = ICONS[name]
-    effective_width = (
-        width if width is not None else ICON_WIDTHS.get(name, DEFAULT_ICON_WIDTH)
-    )
-    return overlay(symbol, effective_width)
+def icon(name: str) -> str:
+    """Return the raw icon symbol."""
+    return ICONS.get(name, "?")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -116,9 +83,7 @@ def colorize(text: str, color: str) -> str:
     return f"{color}{text}{Theme.RESET}"
 
 
-def overlay(content: str, width: int = 2) -> str:
-    """Wrap content in a fixed-width overlay slot."""
-    return f"{' ' * width}\x1b7\x1b[{width}D{content}{Theme.RESET}\x1b8"
+
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -541,8 +506,8 @@ def border_bot() -> str:
 
 
 # Width constants for header row
-STATUS_WIDTH = 12  # 2 overlay + 1 space + 9 max "recording"
-SWITCH_WIDTH = 8  # 2 overlay + 1 space + 6 "switch"
+STATUS_WIDTH = 12  # 2 icon + 1 space + 9 max "recording"
+SWITCH_WIDTH = 8  # 2 icon + 1 space + 6 "switch"
 GAP = 2  # gap between slots
 
 
@@ -594,20 +559,20 @@ def header_row() -> str:
             f"{status_icon} {state.status.lower()}", status_color(state.status)
         )
 
-    # Player part - extra space padding, truncate if needed
+    # Player part - center within player_width
     player_name = _format_player_name(state.player)
-    if len(player_name) > player_width:
-        player_name = truncate(player_name, player_width)
-    player_name = f" {player_name} "  # extra space padding
+    if len(player_name) > player_width - 2:
+        player_name = truncate(player_name, player_width - 2)
+    player_name = f"{player_name:^{player_width}}"
 
-    # Switch part: icon + space + "switch" (no overlay, just inline icon)
+    # Switch part: icon + space + "switch"
     if len(available_players) > 1:
         switch_text = f"{colorize(ICONS['tab'], Theme.KEY_HINT)} switch"
     else:
         switch_text = ""
 
     return row(
-        (status_text, STATUS_WIDTH, STATUS_WIDTH, "<"),
+        (status_text, STATUS_WIDTH, "<"),
         (player_name, player_width, "^"),
         (switch_text, SWITCH_WIDTH, ">"),
     )
@@ -618,8 +583,14 @@ def _info_row(label: str, value: str):
     inner = Config.UI_WIDTH - 4
     lw, gap = 7, 1
     vw = inner - lw - gap
-    label_colored = colorize(label.rjust(lw), Theme.DIM)
-    return row((label_colored, lw, ">"), (truncate(value, vw), vw, "<"))
+    # Format first (no ANSI), then colorize
+    label_text = f"{label:>{lw}}"
+    label_colored = colorize(label_text, Theme.DIM)
+    value_text = truncate(value, vw)
+    return row(
+        (label_colored, lw, ">"),
+        (value_text, vw, "<"),
+    )
 
 
 def album_row():
@@ -644,7 +615,11 @@ def progress_row():
     # Save time widths for volume row alignment
     state._start_time_w = len(start)
     state._end_time_w = len(end)
-    return row((start, len(start), "<"), (bar, bar_w, "^"), (end, len(end), ">"))
+    return row(
+        (start, len(start), "<"),
+        (bar, bar_w, "^"),
+        (end, len(end), ">"),
+    )
 
 
 def _volume_icon(vol: int) -> str:
@@ -658,15 +633,6 @@ def _volume_icon(vol: int) -> str:
     else:
         return "vol-high"
 
-
-# Known widths for toolbar tools (overlay(2) + icon(1) + space(1) + text)
-TOOL_SEEK = 7  # "←→ seek"
-TOOL_VOL = 9  # "↑↓ volume"
-TOOL_MUTE = 4  # "mute"
-TOOL_PAUSE = 7  # "_ pause"
-TOOL_PREV = 4  # "prev"
-TOOL_NEXT = 4  # "next"
-TOOL_CLOSE = 11  # "esc/q close"
 
 
 def toolbar_row():
@@ -690,20 +656,7 @@ def toolbar_row():
     # Combine all tools with 2-space separator
     tools = " " + "  ".join([seek, vol, mute, play_pause, prev, next_, close])
 
-    # Known widths: seek(7) + vol(9) + mute(4) + pause(7) + prev(8) + next(8) + close(11)
-    # + 6 separators ("  ") + leading space = 67
-    total_width = (
-        TOOL_SEEK
-        + TOOL_VOL
-        + TOOL_MUTE
-        + TOOL_PAUSE
-        + TOOL_PREV
-        + TOOL_NEXT
-        + TOOL_CLOSE
-        + 6 * 2
-        + 1
-    )
-    return row((tools, inner, total_width, "^"))
+    return row((f"{tools:<{inner}}", inner, "^"))
 
 
 def volume_row():
@@ -712,11 +665,15 @@ def volume_row():
     pct_text = f"{vol_pct}%"
     start_w = state._start_time_w if state._start_time_w is not None else time_width()
     end_w = state._end_time_w if state._end_time_w is not None else time_width()
-    pct_text = pct_text.rjust(end_w)
-    vol_icon = icon(_volume_icon(vol_pct), start_w)
+    pct_text = f"{pct_text:>{end_w}}"
+    vol_icon = icon(_volume_icon(vol_pct))
     bar_w = Config.UI_WIDTH - 4 - start_w - 1 - 1 - end_w
     bar = volume_bar(vol_pct, bar_w)
-    return row((vol_icon, start_w, "<"), (bar, bar_w, "^"), (pct_text, end_w, ">"))
+    return row(
+        (f"{vol_icon:<{start_w}}", start_w, "<"),
+        (f"{bar:^{bar_w}}", bar_w, "^"),
+        (pct_text, end_w, ">"),
+    )
 
 
 def update_state_from_metadata(data: dict):
@@ -758,43 +715,15 @@ CURSOR_MOVE_PATTERN = re.compile(r"\x1b\[[0-9;]*[DCuCBAH]")
 def row(*slots) -> str:
     """Build a content row from slots.
 
-    Each slot is (content, slot_width, alignment) or
-    (content, slot_width, content_width, alignment) where content_width
-    is the visible length when content has ANSI codes.
+    Each slot is (content, slot_width, alignment), but content must already
+    be padded to slot_width using f-string formatting.
     """
-    # Filter out None slots, normalize to (content, width, content_width, alignment)
-    valid_slots = []
-    for s in slots:
-        if s is None:
-            continue
-        if len(s) == 3:
-            content, width, alignment = s
-            content_width = None  # use len(content)
-        else:
-            content, width, content_width, alignment = s
-        valid_slots.append((content, width, content_width, alignment))
+    valid_slots = [s for s in slots if s is not None]
 
     if not valid_slots:
         return "│ │"
 
-    parts = []
-    for i, (content, width, content_width, alignment) in enumerate(valid_slots):
-        actual_len = content_width if content_width is not None else len(content)
-        if actual_len < width:
-            pad_len = width - actual_len
-            if alignment == ">":
-                content = " " * pad_len + content
-            elif alignment == "^":
-                left_len = pad_len // 2
-                right_len = pad_len - left_len
-                content = " " * left_len + content + " " * right_len
-            else:  # '<' or default
-                content = content + " " * pad_len
-        parts.append(content)
-        if i < len(valid_slots) - 1:
-            parts.append(" ")  # 1-space gap
-
-    content_str = "".join(parts)
+    content_str = " │ ".join(content for content, _width, _align in valid_slots)
 
     return f"{Theme.BORDER}│{Theme.RESET} {content_str} {Theme.BORDER}│{Theme.RESET}"
 
