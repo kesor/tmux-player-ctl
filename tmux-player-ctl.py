@@ -6,6 +6,8 @@ Usage:
     tmux display-popup -x0 -y0 -w100% -h100% -E "python3 /path/to/tmux-player-ctl.py"
 """
 
+from concurrent.futures import ThreadPoolExecutor
+
 import os
 import sys
 import signal
@@ -36,6 +38,8 @@ current_player: str = ""
 available_players: List[str] = []
 current_player_idx: int = -1
 
+_playerctl_pool = ThreadPoolExecutor(max_workers=2, thread_name_prefix="pctl")
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Icons
 # ─────────────────────────────────────────────────────────────────────────────
@@ -44,8 +48,8 @@ current_player_idx: int = -1
 ICONS = {
     # Status
     "play": "\u23f5\ufe0e",  # ▶
-    "record": "\u23fa\ufe0e",  # ⏺
-    "pause": "\u23f8\ufe0e",  # ⏸
+    "record": "\u23fa\ufe0e ",  # ⏺
+    "pause": "\u23f8\ufe0e ",  # ⏸
     "stop": "\u25a0\ufe0e",  # ■
     "play-pause": "\u23ef\ufe0e",  # ⏯
     # Navigation
@@ -58,15 +62,16 @@ ICONS = {
     "skip-end": "\u23ed\ufe0e",  # ⏭ (same as next)
     "eject": "\u23cf\ufe0e",  # ⏏
     # Volume
-    "vol-muted": "\U0001f507\ufe0e",  # 🔇
-    "vol-low": "\U0001f508\ufe0e",  # 🔈
-    "vol-med": "\U0001f509\ufe0e",  # 🔉
-    "vol-high": "\U0001f50a\ufe0e",  # 🔊
+    "vol-muted": "\U0001f507",  # 🔇
+    "vol-low": "\U0001f508",  # 🔈
+    "vol-med": "\U0001f509",  # 🔉
+    "vol-high": "\U0001f50a",  # 🔊
     # Playlist
     "shuffle": "\U0001f500\ufe0e",  # 🔀
     "repeat": "\U0001f501\ufe0e",  # 🔁
     "repeat-one": "\U0001f502\ufe0e",  # 🔂
 }
+
 
 def icon(name: str) -> str:
     """Return the raw icon symbol."""
@@ -81,9 +86,6 @@ def icon(name: str) -> str:
 def colorize(text: str, color: str) -> str:
     """Add ANSI color to text, then reset."""
     return f"{color}{text}{Theme.RESET}"
-
-
-
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -105,8 +107,12 @@ class PlayerState:
     shuffle: str = "false"
     dirty: bool = True
     pre_mute_volume: int = 50  # Store volume before mute for restore on unmute
-    _start_time_w: Optional[int] = None  # Width of start time (set by progress_row for volume_row)
-    _end_time_w: Optional[int] = None  # Width of end time (set by progress_row for volume_row)
+    _start_time_w: Optional[int] = (
+        None  # Width of start time (set by progress_row for volume_row)
+    )
+    _end_time_w: Optional[int] = (
+        None  # Width of end time (set by progress_row for volume_row)
+    )
 
 
 state = PlayerState()
@@ -197,6 +203,7 @@ processes: list[subprocess.Popen] = []
 
 
 def cleanup():
+    _playerctl_pool.shutdown(wait=False)
     for proc in list(processes):
         if proc and proc.poll() is None:
             proc.terminate()
@@ -254,7 +261,6 @@ def render_ui():
     ]
 
     # Write all lines with explicit cursor positioning (no newlines)
-    sys.stdout.write("\033[J")  # Clear from cursor to end of screen
     for i, line in enumerate(rows):
         move_cursor(1 + i, 1)
         sys.stdout.write(line)
@@ -269,7 +275,7 @@ def render_ui():
 def get_available_players() -> List[str]:
     try:
         result = subprocess.run(
-            ["playerctl", "--list-all"], capture_output=True, text=True, timeout=2
+            ["playerctl", "--list-all"], capture_output=True, text=True, timeout=0.5
         )
         if result.returncode != 0:
             return []
@@ -337,7 +343,7 @@ def run_playerctl(*args) -> str:
             ["playerctl"] + player_args() + list(args),
             capture_output=True,
             text=True,
-            timeout=2,
+            timeout=0.5,
         )
         if result.returncode != 0:
             return ""
@@ -505,19 +511,6 @@ def border_bot() -> str:
     return f"{Theme.BORDER}└{'─' * (Config.UI_WIDTH - 2)}┘{Theme.RESET}"
 
 
-# Width constants for header row
-STATUS_WIDTH = 12  # 2 icon + 1 space + 9 max "recording"
-SWITCH_WIDTH = 8  # 2 icon + 1 space + 6 "switch"
-GAP = 2  # gap between slots
-
-
-def time_width() -> int:
-    """Width of formatted time (based on length)."""
-    if state.length > 0:
-        return len(format_time(state.length))
-    return 5  # minimum "0:00"
-
-
 def _status_icon(status: str) -> str:
     """Get icon name for status."""
     icons = {
@@ -540,41 +533,27 @@ def _format_player_name(player: str) -> str:
 
 def header_row() -> str:
     """Header row with status, player name, and switch."""
-    # Calculate widths
-    inner = Config.UI_WIDTH - 4
-    player_width = inner - STATUS_WIDTH - SWITCH_WIDTH - 2  # -2 for row() gaps
+    status_w = 12  # 2 icon + 1 space + 9 max "recording"
+    switch_w = 9  # 2 icon + 1 space + 6 "switch"
+    inner_w = Config.UI_WIDTH - 4
+    player_w = inner_w - status_w - switch_w + 2
 
-    # Status part: 12 visible chars
     status_icon = icon(_status_icon(state.status))
-    if state.status == "Playing":
-        status_text = colorize(f"{status_icon} playing  ", status_color(state.status))
-    elif state.status == "Paused":
-        status_text = colorize(f"{status_icon} paused   ", status_color(state.status))
-    elif state.status == "Stopped":
-        status_text = colorize(f"{status_icon} stopped  ", status_color(state.status))
-    elif state.status == "Recording":
-        status_text = colorize(f"{status_icon} recording", status_color(state.status))
-    else:
-        status_text = colorize(
-            f"{status_icon} {state.status.lower()}", status_color(state.status)
-        )
+    status_text = colorize(
+        f"{status_icon:<2} {state.status.lower()}", status_color(state.status)
+    )
 
-    # Player part - center within player_width
-    player_name = _format_player_name(state.player)
-    if len(player_name) > player_width - 2:
-        player_name = truncate(player_name, player_width - 2)
-    player_name = f"{player_name:^{player_width}}"
+    player_name = f" {truncate(_format_player_name(state.player), player_w)} "
 
-    # Switch part: icon + space + "switch"
     if len(available_players) > 1:
-        switch_text = f"{colorize(ICONS['tab'], Theme.KEY_HINT)} switch"
+        switch_text = f"{colorize(ICONS['tab'], Theme.KEY_HINT):^2} switch"
     else:
         switch_text = ""
 
     return row(
-        (status_text, STATUS_WIDTH, "<"),
-        (player_name, player_width, "^"),
-        (switch_text, SWITCH_WIDTH, ">"),
+        (status_text, status_w, "<"),
+        (player_name, player_w, "^"),
+        (switch_text, switch_w, ">"),
     )
 
 
@@ -583,9 +562,7 @@ def _info_row(label: str, value: str):
     inner = Config.UI_WIDTH - 4
     lw, gap = 7, 1
     vw = inner - lw - gap
-    # Format first (no ANSI), then colorize
-    label_text = f"{label:>{lw}}"
-    label_colored = colorize(label_text, Theme.DIM)
+    label_colored = colorize(f"{label:>{lw}}", Theme.DIM)
     value_text = truncate(value, vw)
     return row(
         (label_colored, lw, ">"),
@@ -609,16 +586,18 @@ def progress_row():
     """Progress row: time + bar + time."""
     inner = Config.UI_WIDTH - 4
     start = format_time(state.position)  # elapsed time: MM:SS
-    end = format_time_total(state.length)  # total time: shows hours if needed
-    bar_w = inner - len(start) - 1 - 1 - len(end)  # inner - start - gap - gap - end
-    bar = progress_bar(state.position, state.length, bar_w)
+    end = format_time(state.length)  # total time: shows hours if needed
     # Save time widths for volume row alignment
     state._start_time_w = len(start)
     state._end_time_w = len(end)
+    bar_w = (
+        inner - state._start_time_w - 1 - 1 - state._end_time_w
+    )  # inner - start - gap - gap - end
+    bar = progress_bar(state.position, state.length, bar_w)
     return row(
-        (start, len(start), "<"),
+        (start, state._start_time_w, "<"),
         (bar, bar_w, "^"),
-        (end, len(end), ">"),
+        (end, state._end_time_w, ">"),
     )
 
 
@@ -634,44 +613,48 @@ def _volume_icon(vol: int) -> str:
         return "vol-high"
 
 
-
 def toolbar_row():
     """Toolbar with controls."""
-    inner = Config.UI_WIDTH - 4  # 68
+    inner = Config.UI_WIDTH - 4
 
     # Build each tool
-    seek = f"{colorize('←→', Theme.KEY_HINT)} seek"
-    vol = f"{colorize('↑↓', Theme.KEY_HINT)} volume"
-    mute = f"{colorize('m', Theme.KEY_HINT)}ute"
+    seek = f"{colorize('←→', Theme.KEY_HINT)} seek"  # 7
+    vol = f"{colorize('↑↓', Theme.KEY_HINT)} volume"  # 9
+    mute = f"{colorize('m', Theme.KEY_HINT)}ute"  # 4
 
     if state.status == "Playing":
-        play_pause = f"{colorize('␣', Theme.KEY_HINT)} pause"
+        play_pause = f"{colorize('␣', Theme.KEY_HINT)} pause"  # 7
     else:
         play_pause = f"{colorize('␣', Theme.KEY_HINT)} play "
 
-    prev = f"{colorize('p', Theme.KEY_HINT)}rev"
-    next_ = f"{colorize('n', Theme.KEY_HINT)}ext"
-    close = f"{colorize('esc/q', Theme.KEY_HINT)} close"
+    prev = f"{colorize('p', Theme.KEY_HINT)}rev"  # 4
+    next_ = f"{colorize('n', Theme.KEY_HINT)}ext"  # 4
+    close = f"{colorize('esc/q', Theme.KEY_HINT)} close"  # 11
 
     # Combine all tools with 2-space separator
-    tools = " " + "  ".join([seek, vol, mute, play_pause, prev, next_, close])
+    tools = "  ".join([seek, vol, mute, play_pause, prev, next_, close])
 
-    return row((f"{tools:<{inner}}", inner, "^"))
+    gaps_w = 6 * 2
+    tool_w = 7 + 9 + 4 + 7 + 4 + 4 + 11 + gaps_w
+    pad_w = int((inner - tool_w) / 2)
+    pad = " " * pad_w
+
+    return row((f"{pad}{tools:^{tool_w}}{pad}", inner, "^"))
 
 
 def volume_row():
     """Volume row: icon + bar + percentage."""
+    inner_w = Config.UI_WIDTH - 4
     vol_pct = state.volume  # already int 0-100
     pct_text = f"{vol_pct}%"
-    start_w = state._start_time_w if state._start_time_w is not None else time_width()
-    end_w = state._end_time_w if state._end_time_w is not None else time_width()
-    pct_text = f"{pct_text:>{end_w}}"
-    vol_icon = icon(_volume_icon(vol_pct))
-    bar_w = Config.UI_WIDTH - 4 - start_w - 1 - 1 - end_w
+    start_w = state._start_time_w or 0
+    end_w = state._end_time_w or 0
+    vol_icon = f" {icon(_volume_icon(vol_pct)):^2}"
+    bar_w = inner_w - start_w - 1 - 1 - end_w
     bar = volume_bar(vol_pct, bar_w)
     return row(
-        (f"{vol_icon:<{start_w}}", start_w, "<"),
-        (f"{bar:^{bar_w}}", bar_w, "^"),
+        (vol_icon, start_w - 1, "<"),
+        (bar, bar_w, "^"),
         (pct_text, end_w, ">"),
     )
 
@@ -723,7 +706,9 @@ def row(*slots) -> str:
     if not valid_slots:
         return "│ │"
 
-    content_str = " │ ".join(content for content, _width, _align in valid_slots)
+    content_str = " ".join(
+        f"{content:{align}{width}}" for content, width, align in valid_slots
+    )
 
     return f"{Theme.BORDER}│{Theme.RESET} {content_str} {Theme.BORDER}│{Theme.RESET}"
 
@@ -755,16 +740,6 @@ def truncate(text: str, width: int) -> str:
 
 
 def format_time(seconds: float) -> str:
-    """Format seconds as MM:SS (for elapsed time)."""
-    if seconds <= 0:
-        return "0:00"
-    minutes = int(seconds // 60)
-    secs = int(seconds % 60)
-    return f"{minutes}:{secs:02d}"
-
-
-def format_time_total(seconds: float) -> str:
-    """Format total track length, shows hours for long tracks."""
     if seconds <= 0:
         return "0:00"
     hours = int(seconds // 3600)
@@ -772,19 +747,22 @@ def format_time_total(seconds: float) -> str:
     secs = int(seconds % 60)
     if hours > 0:
         return f"{hours}:{minutes:02d}:{secs:02d}"
-    return f"{minutes}:{secs:02d}"
+    if minutes > 0:
+        return f"{minutes}:{secs:02d}"
+    return f"0:{secs:02d}"
 
 
-def progress_bar(current: float, total: float, width: int) -> str:
+def progress_bar(current: float, total: float, total_width: int) -> str:
     if total <= 0:
-        return "─" * width
-    filled = min(int((current / total) * width), width)
-    empty = width - filled
+        return "─" * total_width
+    filled_w = min(int((current / total) * total_width), total_width)
+    empty_w = total_width - filled_w - 1
     return (
         Theme.PROGRESS_FILL
-        + "━" * filled
+        + "━" * filled_w
+        + "\u25cf"
         + Theme.PROGRESS_EMPTY
-        + "━" * empty
+        + "━" * empty_w
         + Theme.RESET
     )
 
@@ -805,6 +783,23 @@ def volume_bar(volume: int, width: int) -> str:
     return f"{fill_color}{'█' * filled}{Theme.VOL_EMPTY}{'░' * empty}{Theme.RESET}"
 
 
+def run_playerctl_async(*args) -> None:
+    """Fire-and-forget playerctl command. Does not block the main loop."""
+
+    def _exec():
+        try:
+            subprocess.run(
+                ["playerctl"] + player_args() + list(args),
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                timeout=0.3,  # Fail fast if playerctl hangs
+            )
+        except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
+            pass  # Metadata follower will reconcile state on next update
+
+    _playerctl_pool.submit(_exec)
+
+
 def handle_key(key: str, seq: str = "") -> None:
     global last_command_time
     import time
@@ -819,7 +814,7 @@ def handle_key(key: str, seq: str = "") -> None:
             vol = min(100, state.volume + 5)
             # Format volume as float for playerctl
             vol_arg = f"{vol / 100:.2f}"
-            run_playerctl("volume", vol_arg)
+            run_playerctl_async("volume", vol_arg)
             state.volume = vol
             last_command_time = time.time()
         elif seq == "[B":
@@ -827,18 +822,18 @@ def handle_key(key: str, seq: str = "") -> None:
             vol = max(0, state.volume - 5)
             # Format volume as float for playerctl
             vol_arg = f"{vol / 100:.2f}"
-            run_playerctl("volume", vol_arg)
+            run_playerctl_async("volume", vol_arg)
             state.volume = vol
             last_command_time = time.time()
         elif seq == "[C":
             # Seek forward: optimistic update
             state.position = min(state.length, state.position + Config.SEEK_SECONDS)
-            run_playerctl("position", f"+{Config.SEEK_SECONDS}")
+            run_playerctl_async("position", f"+{Config.SEEK_SECONDS}")
             last_command_time = time.time()
         elif seq == "[D":
             # Seek backward: optimistic update
             state.position = max(0, state.position - Config.SEEK_SECONDS)
-            run_playerctl("position", f"-{Config.SEEK_SECONDS}")
+            run_playerctl_async("position", f"-{Config.SEEK_SECONDS}")
             last_command_time = time.time()
         else:
             return
@@ -851,32 +846,32 @@ def handle_key(key: str, seq: str = "") -> None:
             state.status = "Paused"
         else:
             state.status = "Playing"
-        run_playerctl("play-pause")
+        run_playerctl_async("play-pause")
         last_command_time = time.time()
     elif key in {"n", "N"}:
-        run_playerctl("next")
+        run_playerctl_async("next")
     elif key in {"p", "P"}:
-        run_playerctl("previous")
+        run_playerctl_async("previous")
     elif key in {"s", "S"}:
-        run_playerctl("shuffle", "Toggle")
+        run_playerctl_async("shuffle", "Toggle")
     elif key in {"l", "L"}:
         if state.loop == "None":
-            run_playerctl("loop", "Track")
+            run_playerctl_async("loop", "Track")
         elif state.loop == "Track":
-            run_playerctl("loop", "Playlist")
+            run_playerctl_async("loop", "Playlist")
         else:
-            run_playerctl("loop", "None")
+            run_playerctl_async("loop", "None")
     elif key in {"m", "M"}:
         # Mute/unmute (volume is int 0-100)
         if state.volume > 0:
             # Mute: store current volume for restore
             state.pre_mute_volume = state.volume
-            run_playerctl("volume", "0.0")
+            run_playerctl_async("volume", "0.0")
             state.volume = 0
         else:
             # Unmute: restore to pre-mute volume (or 50% if first mute)
             restore_vol = state.pre_mute_volume if state.pre_mute_volume > 0 else 50
-            run_playerctl("volume", f"{restore_vol / 100:.2f}")
+            run_playerctl_async("volume", f"{restore_vol / 100:.2f}")
             state.volume = restore_vol
     else:
         return
