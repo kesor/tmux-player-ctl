@@ -94,12 +94,12 @@ def icon(name: str, width: int = None) -> str:
 
 def colorize(text: str, color: str) -> str:
     """Add ANSI color to text, then reset."""
-    return f"{color}{text}\033[0m"
+    return f"{color}{text}{Theme.RESET}"
 
 
 def overlay(content: str, width: int = 2) -> str:
     """Wrap content in a fixed-width overlay slot."""
-    return f"{' ' * width}\x1b7\x1b[{width}D{content}\x1b[0m\x1b8"
+    return f"{' ' * width}\x1b7\x1b[{width}D{content}{Theme.RESET}\x1b8"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # State
