@@ -662,7 +662,6 @@ def volume_row():
 
 def update_state_from_metadata(data: dict):
     """Update state from parsed metadata dict."""
-    import time
 
     # Debounce: skip if update came too soon after our optimistic update
     if time.time() - last_command_time < COMMAND_DEBOUNCE:
@@ -803,7 +802,6 @@ def run_playerctl_async(*args) -> None:
 
 def handle_key(key: str, seq: str = "") -> None:
     global last_command_time
-    import time
 
     now = time.time()
     if key != "q" and key != "Q" and key != "\x1b" and now - last_command_time < COMMAND_COOLDOWN:
