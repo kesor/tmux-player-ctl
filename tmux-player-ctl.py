@@ -543,7 +543,7 @@ def header_row() -> str:
         f"{status_icon:<2} {state.status.lower()}", status_color(state.status)
     )
 
-    player_name = f" {truncate(_format_player_name(state.player), player_w-2)} "
+    player_name = f" {truncate(_format_player_name(state.player), player_w - 2)} "
 
     if len(available_players) > 1:
         switch_text = f"{colorize(ICONS['tab'], Theme.KEY_HINT):^2} switch"
