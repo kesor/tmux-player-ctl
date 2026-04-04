@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Simple display test for progress and volume rows."""
+
 import importlib.util
-spec = importlib.util.spec_from_file_location('tpc', './tmux-player-ctl.py')
+
+spec = importlib.util.spec_from_file_location("tpc", "./tmux-player-ctl.py")
 tpc = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(tpc)
 
