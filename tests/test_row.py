@@ -894,5 +894,42 @@ class TestRenderUI(unittest.TestCase):
         self.assertIn("seek", output)
 
 
+class TestThemeResetWithBackground(unittest.TestCase):
+    """Test that Theme.RESET includes background when TPCTL_BG is set."""
+    
+    def test_reset_without_bg(self):
+        """Without BG, RESET is just SGR 0."""
+        # Reload module without BG
+        import importlib
+        import importlib.util
+        import os
+        # Remove BG env var
+        old_bg = os.environ.pop('TPCTL_BG', None)
+        try:
+            spec = importlib.util.spec_from_file_location('tpc2', '../tmux-player-ctl.py')
+            tpc2 = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(tpc2)
+            # Should be just \033[0m
+            self.assertEqual(tpc2.Theme.RESET, '\033[0m')
+        finally:
+            if old_bg:
+                os.environ['TPCTL_BG'] = old_bg
+    
+    def test_reset_with_bg(self):
+        """With BG set, RESET includes background color."""
+        import importlib
+        import importlib.util
+        import os
+        os.environ['TPCTL_BG'] = '30;30;50'
+        try:
+            spec = importlib.util.spec_from_file_location('tpc3', '../tmux-player-ctl.py')
+            tpc3 = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(tpc3)
+            # Should be \033[0m followed by background
+            self.assertEqual(tpc3.Theme.RESET, '\033[0m\033[48;2;30;30;50m')
+        finally:
+            del os.environ['TPCTL_BG']
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

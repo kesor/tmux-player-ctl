@@ -455,7 +455,8 @@ class Theme:
     VOL_HIGH = os.environ.get("TPCTL_VOL_HIGH", "\033[38;2;166;227;161m")    # bright green
     VOL_EMPTY = os.environ.get("TPCTL_VOL_EMPTY", "\033[38;2;108;112;134m")  # overlay0
     
-    RESET = "\033[0m"
+    # Reset includes background color so it's reapplied after each reset
+    RESET = f"\033[0m{'' if not Config.BG else f'\033[48;2;{Config.BG}m'}"
 
 
 def status_color(status: str) -> str:
