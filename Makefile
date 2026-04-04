@@ -15,10 +15,10 @@ test-integration:
 	@echo "Running integration tests..."
 	@cd tests && python3 -m unittest integration -v
 
-# Run tests with coverage (requires nix develop)
+# Run tests with coverage for main source file only (requires nix develop)
 test-cov:
 	@echo "Running tests with coverage..."
-	@nix develop --command bash -c "cd tests && python3 -m coverage run --source=.. -m unittest test_signals test_playerctl test_row test_composed test_utils -q && python3 -m coverage report --skip-covered"
+	@nix develop --command bash -c "cd tests && python3 -m coverage run --source=.. -m unittest test_signals test_playerctl test_row test_composed test_utils -q && python3 -m coverage report --skip-covered --show-missing --include='../tmux-player-ctl.py'"
 
 # Run a specific test file
 test-file:
