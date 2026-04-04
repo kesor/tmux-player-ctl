@@ -39,17 +39,17 @@ class TestParseMetadata(unittest.TestCase):
     """Test parse_metadata() extracts newline-delimited metadata."""
 
     def _make_metadata(self, **fields):
-        """Build 40-line metadata with specified fields."""
-        parts = [""] * 40
-        parts[0] = fields.get("player", "")
-        parts[1] = fields.get("status", "")
-        parts[2] = fields.get("title", "")
-        parts[3] = fields.get("artist", "")
-        parts[4] = fields.get("album", "")
-        parts[31] = fields.get("position", "")
-        parts[32] = fields.get("length", "")
-        parts[33] = fields.get("volume", "")
-        return "\n".join(parts)
+        """Build 39-field prefixed metadata string with leading newline."""
+        defaults = {
+            "volume": "0.5",
+            "loopStatus": "None",
+            "loop": "None",
+            "shuffle": "false",
+        }
+        merged = {**defaults, **fields}
+        return "\n" + "\n".join(
+            f"@{i}@{merged.get(f, '')}" for i, f in enumerate(tpc.METADATA_FIELDS)
+        )
 
     def test_parse_empty_metadata(self):
         """Short input should return empty dict."""
@@ -363,26 +363,22 @@ class TestMetadataFollowerParsing(unittest.TestCase):
     """Test parsing metadata follower output (39 fields per update)."""
 
     def _make_full_metadata(self, **fields):
-        """Build a 39-line metadata block."""
+        """Build a 39-field prefixed metadata block with leading newline."""
         defaults = {
-            "playerName": "spotify",
+            "player": "spotify",
             "status": "Playing",
             "title": "Test Song",
             "artist": "Test Artist",
             "album": "Test Album",
+            "volume": "0.5",
+            "loopStatus": "None",
+            "loop": "None",
+            "shuffle": "false",
         }
-        defaults.update(fields)
-        # Fill in all 39 fields
-        parts = [""] * 39
-        parts[0] = defaults.get("playerName", "")
-        parts[1] = defaults.get("status", "")
-        parts[2] = defaults.get("title", "")
-        parts[3] = defaults.get("artist", "")
-        parts[4] = defaults.get("album", "")
-        parts[31] = defaults.get("position", "")
-        parts[32] = defaults.get("length", "")
-        parts[33] = defaults.get("volume", "")
-        return "\n".join(parts)
+        merged = {**defaults, **fields}
+        return "\n" + "\n".join(
+            f"@{i}@{merged.get(f, '')}" for i, f in enumerate(tpc.METADATA_FIELDS)
+        )
 
     def test_parse_complete_39_line_block(self):
         """Should parse a complete 39-line metadata block."""
@@ -402,26 +398,14 @@ class TestMetadataFollowerParsing(unittest.TestCase):
         self.assertEqual(result["length"], 180.0)
 
     def test_parse_multiple_blocks(self):
-        """Should parse multiple concatenated 39-line blocks."""
+        """Each block parses independently from the prefixed output."""
+        # Each block starts with \n and can be parsed directly
         block1 = self._make_full_metadata(title="First Song")
         block2 = self._make_full_metadata(title="Second Song")
-        # Concatenate blocks with newline separator
-        combined = block1 + "\n" + block2
-        # Don't use strip() - it removes trailing empty fields
-        lines = combined.split("\n")
-        # Should have 78 lines (2 blocks of 39 each)
-        self.assertEqual(len(lines), 78)
-        # Parse each block by taking 39 lines at a time
-        titles_found = []
-        for i in range(0, len(lines), 39):
-            block_lines = lines[i : i + 39]
-            if len(block_lines) == 39:
-                block = "\n".join(block_lines)
-                result = tpc.parse_metadata(block)
-                if result:
-                    titles_found.append(result.get("title", ""))
-        self.assertIn("First Song", titles_found)
-        self.assertIn("Second Song", titles_found)
+        result1 = tpc.parse_metadata(block1)
+        result2 = tpc.parse_metadata(block2)
+        self.assertEqual(result1["title"], "First Song")
+        self.assertEqual(result2["title"], "Second Song")
 
 
 if __name__ == "__main__":

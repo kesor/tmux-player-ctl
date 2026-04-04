@@ -118,56 +118,94 @@ class PlayerState:
 
 state = PlayerState()
 
-# Format for metadata parsing (newline separator - safe from user content)
-METADATA_FORMAT = "\n".join(
-    [
-        # Basic info
-        "{{playerName}}",
-        "{{status}}",
-        "{{title}}",
-        "{{artist}}",
-        "{{album}}",
-        # Track details
-        "{{albumArtist}}",
-        "{{trackNumber}}",
-        "{{discNumber}}",
-        "{{genre}}",
-        "{{xesam:explicit}}",
-        "{{subtitle}}",
-        "{{asText}}",
-        # People
-        "{{composer}}",
-        "{{lyricist}}",
-        "{{conductor}}",
-        "{{performer}}",
-        "{{arranger}}",
-        # Dates & IDs
-        "{{releaseDate}}",
-        "{{contentCreated}}",
-        "{{musicBrainzTrackId}}",
-        "{{musicBrainzAlbumId}}",
-        "{{musicBrainzArtistIds}}",
-        # Other
-        "{{comment}}",
-        "{{mood}}",
-        "{{url}}",
-        "{{userHomePage}}",
-        "{{useCount}}",
-        "{{autoRating}}",
-        "{{audioBPM}}",
-        "{{language}}",
-        "{{lyrics}}",
-        # Playback
-        "{{position}}",
-        "{{mpris:length}}",
-        "{{volume}}",
-        "{{loopStatus}}",
-        "{{loop}}",
-        "{{shuffle}}",
-        # Extra
-        "{{mpris:artUrl}}",
-        "{{mpris:trackid}}",
-    ]
+# Ordered field names (39 fields, matching METADATA_FORMAT)
+METADATA_FIELDS = [
+    "player",
+    "status",
+    "title",
+    "artist",
+    "album",
+    "albumArtist",
+    "trackNumber",
+    "discNumber",
+    "genre",
+    "explicit",
+    "subtitle",
+    "asText",
+    "composer",
+    "lyricist",
+    "conductor",
+    "performer",
+    "arranger",
+    "releaseDate",
+    "contentCreated",
+    "musicBrainzTrackId",
+    "musicBrainzAlbumId",
+    "musicBrainzArtistIds",
+    "comment",
+    "mood",
+    "url",
+    "userHomePage",
+    "useCount",
+    "autoRating",
+    "audioBPM",
+    "language",
+    "lyrics",
+    "position",
+    "length",
+    "volume",
+    "loopStatus",
+    "loop",
+    "shuffle",
+    "artUrl",
+    "trackid",
+]
+
+# Playerctl field names in same order as METADATA_FIELDS
+_METADATA_KEYS = [
+    "{{playerName}}",
+    "{{status}}",
+    "{{title}}",
+    "{{artist}}",
+    "{{album}}",
+    "{{albumArtist}}",
+    "{{trackNumber}}",
+    "{{discNumber}}",
+    "{{genre}}",
+    "{{xesam:explicit}}",
+    "{{subtitle}}",
+    "{{asText}}",
+    "{{composer}}",
+    "{{lyricist}}",
+    "{{conductor}}",
+    "{{performer}}",
+    "{{arranger}}",
+    "{{releaseDate}}",
+    "{{contentCreated}}",
+    "{{musicBrainzTrackId}}",
+    "{{musicBrainzAlbumId}}",
+    "{{musicBrainzArtistIds}}",
+    "{{comment}}",
+    "{{mood}}",
+    "{{url}}",
+    "{{userHomePage}}",
+    "{{useCount}}",
+    "{{autoRating}}",
+    "{{audioBPM}}",
+    "{{language}}",
+    "{{lyrics}}",
+    "{{position}}",
+    "{{mpris:length}}",
+    "{{volume}}",
+    "{{loopStatus}}",
+    "{{loop}}",
+    "{{shuffle}}",
+    "{{mpris:artUrl}}",
+    "{{mpris:trackid}}",
+]
+# Prefixed format: \n@0@{{playerName}}\n@1@{{status}}\n... for robust framing
+METADATA_FORMAT = "\n" + "\n".join(
+    f"@{i}@{key}" for i, key in enumerate(_METADATA_KEYS)
 )
 
 # Debounce follower updates after commands (in seconds)
@@ -405,60 +443,76 @@ def _parse_volume(raw: str) -> int:
 
 
 def parse_metadata(raw: str) -> dict:
-    """Parse metadata using newline delimiter."""
-    parts = raw.split("\n")
-    if len(parts) < 10:
+    """Parse prefixed metadata. Fields are \n@0@value\n@1@value\n...
+
+    Newlines within field values are preserved since we split on \n@N@ pattern.
+    """
+    try:
+        parts = raw.split("\n@")
+        # parts[0] is empty string (before leading \n)
+        data: dict[str, str] = {}
+        for part in parts[1:]:
+            end = part.index("@")
+            idx = int(part[:end])
+            data[METADATA_FIELDS[idx]] = part[end + 1 :]
+        if len(data) != len(METADATA_FIELDS):
+            return {}
+    except (ValueError, IndexError, KeyError):
         return {}
+
+    def get(key: str, default: str = "") -> str:
+        return data.get(key, default)
+
     try:
         return {
             # Basic info
-            "player": parts[0] or "",
-            "status": parts[1] or "",
-            "title": parts[2] or "",
-            "artist": parts[3] or "",
-            "album": parts[4] or "",
+            "player": get("player"),
+            "status": get("status"),
+            "title": get("title"),
+            "artist": get("artist"),
+            "album": get("album"),
             # Track details
-            "albumArtist": parts[5] or "",
-            "trackNumber": parts[6] or "",
-            "discNumber": parts[7] or "",
-            "genre": parts[8] or "",
-            "explicit": parts[9] or "false",
-            "subtitle": parts[10] or "",
-            "asText": parts[11] or "",
+            "albumArtist": get("albumArtist"),
+            "trackNumber": get("trackNumber"),
+            "discNumber": get("discNumber"),
+            "genre": get("genre"),
+            "explicit": get("explicit", "false"),
+            "subtitle": get("subtitle"),
+            "asText": get("asText"),
             # People
-            "composer": parts[12] or "",
-            "lyricist": parts[13] or "",
-            "conductor": parts[14] or "",
-            "performer": parts[15] or "",
-            "arranger": parts[16] or "",
+            "composer": get("composer"),
+            "lyricist": get("lyricist"),
+            "conductor": get("conductor"),
+            "performer": get("performer"),
+            "arranger": get("arranger"),
             # Dates & IDs
-            "releaseDate": parts[17] or "",
-            "contentCreated": parts[18] or "",
-            "musicBrainzTrackId": parts[19] or "",
-            "musicBrainzAlbumId": parts[20] or "",
-            "musicBrainzArtistIds": parts[21] or "",
+            "releaseDate": get("releaseDate"),
+            "contentCreated": get("contentCreated"),
+            "musicBrainzTrackId": get("musicBrainzTrackId"),
+            "musicBrainzAlbumId": get("musicBrainzAlbumId"),
+            "musicBrainzArtistIds": get("musicBrainzArtistIds"),
             # Other
-            "comment": parts[22] or "",
-            "mood": parts[23] or "",
-            "url": parts[24] or "",
-            "userHomePage": parts[25] or "",
-            "useCount": parts[26] or "",
-            "autoRating": parts[27] or "",
-            "audioBPM": parts[28] or "",
-            "language": parts[29] or "",
-            "lyrics": parts[30] or "",
+            "comment": get("comment"),
+            "mood": get("mood"),
+            "url": get("url"),
+            "userHomePage": get("userHomePage"),
+            "useCount": get("useCount"),
+            "autoRating": get("autoRating"),
+            "audioBPM": get("audioBPM"),
+            "language": get("language"),
+            "lyrics": get("lyrics"),
             # Playback
-            "position": float(parts[31]) / 1_000_000 if parts[31] else 0.0,
-            "length": float(parts[32]) / 1_000_000 if parts[32] else 0.0,
-            "volume": _parse_volume(parts[33]),
-            "loopStatus": parts[34] or "None",
-            "loop": parts[35] or "None",
-            "shuffle": parts[36] or "false",
+            "position": float(data["position"]) / 1_000_000 if data.get("position") else 0.0,
+            "length": float(data["length"]) / 1_000_000 if data.get("length") else 0.0,
+            "volume": _parse_volume(get("volume")),
+            "loopStatus": get("loopStatus", "None"),
+            "loop": get("loop", "None"),
+            "shuffle": get("shuffle", "false"),
             # Extra
-            "artUrl": parts[37] or "",
-            "trackid": parts[38] or "",
+            "artUrl": get("artUrl"),
+            "trackid": get("trackid"),
         }
-    except (ValueError, IndexError):
+    except (ValueError, KeyError):
         return {}
 
 
@@ -986,13 +1040,16 @@ def main():
                     data = os.read(meta_proc.stdout.fileno(), 4096)
                     if data:
                         decoded = data.decode("utf-8", errors="replace")
-                        # Each metadata update is 39 lines (fields joined by \n)
-                        # Parse all complete blocks (39 lines each)
-                        lines = decoded.strip().split("\n")
-                        for i in range(0, len(lines), 39):
-                            block_lines = lines[i : i + 39]
-                            if len(block_lines) == 39:
-                                block = "\n".join(block_lines)
+                        # Split on field boundary \n@N@ to handle embedded newlines
+                        parts = decoded.split("\n@")
+                        # parts[0] may be empty (leading \n); skip it
+                        # Process complete blocks of 39 fields each
+                        offset = 0 if parts[0] != "" else 1
+                        for start in range(offset, len(parts), 39):
+                            chunk = parts[start : start + 39]
+                            if len(chunk) == 39:
+                                # Reconstruct prefixed format: \n@0@...\n@38@...
+                                block = "@" + "\n@".join(chunk)
                                 parsed = parse_metadata(block)
                                 if parsed:
                                     update_state_from_metadata(parsed)

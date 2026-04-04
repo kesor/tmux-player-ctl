@@ -20,65 +20,27 @@ def make_metadata(
     volume="0.5",
     **extra,
 ) -> str:
-    """Create a 39-field metadata string for testing."""
-    # Fields 0-4: basic info
-    fields = [player, status, title, artist, album]
-    # Fields 5-16: track details + people (12 fields)
-    fields.extend([""] * 12)  # albumArtist, trackNumber, discNumber, etc.
-    # Fields 17-30: dates/IDs + other (14 fields)
-    fields.extend([""] * 14)
-    # Field 31: position
-    fields.append(position)
-    # Field 32: length
-    fields.append(length)
-    # Field 33: volume
-    fields.append(volume)
-    # Fields 34-36: loop/shuffle (3 fields)
-    fields.extend(["None", "None", "false"])
-    # Fields 37-38: artUrl, trackid (2 fields)
-    fields.extend(["", ""])
-
-    # Apply any extra fields
-    if extra:
-        # Map extra field names to their indices
-        field_map = {
-            "albumArtist": 5,
-            "trackNumber": 6,
-            "discNumber": 7,
-            "genre": 8,
-            "explicit": 9,
-            "subtitle": 10,
-            "asText": 11,
-            "composer": 12,
-            "lyricist": 13,
-            "conductor": 14,
-            "performer": 15,
-            "arranger": 16,
-            "releaseDate": 17,
-            "contentCreated": 18,
-            "musicBrainzTrackId": 19,
-            "musicBrainzAlbumId": 20,
-            "musicBrainzArtistIds": 21,
-            "comment": 22,
-            "mood": 23,
-            "url": 24,
-            "userHomePage": 25,
-            "useCount": 26,
-            "autoRating": 27,
-            "audioBPM": 28,
-            "language": 29,
-            "lyrics": 30,
-            "loopStatus": 34,
-            "loop": 35,
-            "shuffle": 36,
-            "artUrl": 37,
-            "trackid": 38,
-        }
-        for key, value in extra.items():
-            if key in field_map:
-                fields[field_map[key]] = value
-
-    return "\n".join(fields)
+    """Create a 39-field prefixed metadata string with leading newline."""
+    defaults = {
+        "volume": "0.5",
+        "loopStatus": "None",
+        "loop": "None",
+        "shuffle": "false",
+    }
+    fields = {
+        **defaults,
+        "player": player,
+        "status": status,
+        "title": title,
+        "artist": artist,
+        "album": album,
+        "position": position,
+        "length": length,
+    }
+    fields.update(extra)
+    return "\n" + "\n".join(
+        f"@{i}@{fields.get(f, '')}" for i, f in enumerate(tpc.METADATA_FIELDS)
+    )
 
 
 class TestParseMetadataPosition(unittest.TestCase):

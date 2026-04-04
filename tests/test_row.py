@@ -371,91 +371,17 @@ class TestIcon(unittest.TestCase):
 
 
 def make_metadata(**kwargs):
-    """Create a metadata string with defaults for all fields."""
-    fields = {
-        "player": "",
-        "status": "",
-        "title": "",
-        "artist": "",
-        "album": "",
-        "albumArtist": "",
-        "trackNumber": "",
-        "discNumber": "",
-        "genre": "",
-        "explicit": "false",
-        "subtitle": "",
-        "asText": "",
-        "composer": "",
-        "lyricist": "",
-        "conductor": "",
-        "performer": "",
-        "arranger": "",
-        "releaseDate": "",
-        "contentCreated": "",
-        "musicBrainzTrackId": "",
-        "musicBrainzAlbumId": "",
-        "musicBrainzArtistIds": "",
-        "comment": "",
-        "mood": "",
-        "url": "",
-        "userHomePage": "",
-        "useCount": "",
-        "autoRating": "",
-        "audioBPM": "",
-        "language": "",
-        "lyrics": "",
-        "position": "",
-        "length": "",
+    """Create a 39-field prefixed metadata string with leading newline."""
+    defaults = {
         "volume": "0.0",
+        "explicit": "false",
         "loopStatus": "None",
         "loop": "None",
         "shuffle": "false",
-        "artUrl": "",
-        "trackid": "",
     }
-    fields.update(kwargs)
-    return "\n".join(
-        [
-            fields["player"],
-            fields["status"],
-            fields["title"],
-            fields["artist"],
-            fields["album"],
-            fields["albumArtist"],
-            fields["trackNumber"],
-            fields["discNumber"],
-            fields["genre"],
-            fields["explicit"],
-            fields["subtitle"],
-            fields["asText"],
-            fields["composer"],
-            fields["lyricist"],
-            fields["conductor"],
-            fields["performer"],
-            fields["arranger"],
-            fields["releaseDate"],
-            fields["contentCreated"],
-            fields["musicBrainzTrackId"],
-            fields["musicBrainzAlbumId"],
-            fields["musicBrainzArtistIds"],
-            fields["comment"],
-            fields["mood"],
-            fields["url"],
-            fields["userHomePage"],
-            fields["useCount"],
-            fields["autoRating"],
-            fields["audioBPM"],
-            fields["language"],
-            fields["lyrics"],
-            fields["position"],
-            fields["length"],
-            fields["volume"],
-            fields["loopStatus"],
-            fields["loop"],
-            fields["shuffle"],
-            fields["artUrl"],
-            fields["trackid"],
-        ]
+    fields = {**defaults, **kwargs}
+    return "\n" + "\n".join(
+        f"@{i}@{fields.get(f, '')}" for i, f in enumerate(tpc.METADATA_FIELDS)
     )
 
 
@@ -622,6 +548,34 @@ class TestMetadataParse(unittest.TestCase):
         """Short input returns empty dict."""
         result = tpc.parse_metadata("field1\nfield2")
         self.assertEqual(result, {})
+
+    def test_metadata_fields_has_39_elements(self):
+        """METADATA_FIELDS should have exactly 39 elements."""
+        self.assertEqual(len(tpc.METADATA_FIELDS), 39)
+
+    def test_metadata_format_has_prefixes(self):
+        """METADATA_FORMAT uses \n@N@ field prefixes for framing."""
+        self.assertTrue(tpc.METADATA_FORMAT.startswith("\n"))
+        self.assertIn("\n@0@{{playerName}}", tpc.METADATA_FORMAT)
+        self.assertIn("\n@1@{{status}}", tpc.METADATA_FORMAT)
+        self.assertIn("\n@38@{{mpris:trackid}}", tpc.METADATA_FORMAT)
+
+    def test_metadata_parse_prefixed_format(self):
+        """parse_metadata should handle @N@ prefixed format correctly."""
+        raw = make_metadata(player="spotify", status="Playing", title="Test Song")
+        result = tpc.parse_metadata(raw)
+        self.assertEqual(result["player"], "spotify")
+        self.assertEqual(result["status"], "Playing")
+        self.assertEqual(result["title"], "Test Song")
+
+    def test_metadata_parse_preserves_newlines_in_fields(self):
+        """Fields with embedded newlines are parsed correctly."""
+        raw = make_metadata(
+            player="spotify", status="Playing", title="Song", artist="Multi\nLine\nArtist"
+        )
+        result = tpc.parse_metadata(raw)
+        self.assertEqual(result["player"], "spotify")
+        self.assertEqual(result["artist"], "Multi\nLine\nArtist")
 
     def test_metadata_parse_invalid_position(self):
         """Invalid position float returns empty dict."""
