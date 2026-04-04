@@ -827,7 +827,7 @@ class TestRenderUI(unittest.TestCase):
         self.assertIn("Track:", output)
 
     def test_render_ui_empty_row_when_no_album(self):
-        """When album is missing, empty row takes its place (12 rows maintained)."""
+        """When album is missing, padding row added at end (no Album label)."""
         tpc.state.title = "Test Song"
         tpc.state.artist = "Test Artist"
         tpc.state.album = ""
@@ -849,7 +849,7 @@ class TestRenderUI(unittest.TestCase):
         self.assertEqual(output.count('\n'), 12)
 
     def test_render_ui_with_album_has_12_rows(self):
-        """With album present, still renders 12 rows."""
+        """With album present, renders 12 rows with album at top."""
         tpc.state.title = "Test Song"
         tpc.state.artist = "Test Artist"
         tpc.state.album = "Test Album"

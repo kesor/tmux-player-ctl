@@ -238,14 +238,12 @@ def cleanup_proc(proc: Optional[subprocess.Popen]) -> None:
 
 def render_ui():
     """Render the full UI to stdout."""
-    # Move cursor to top of UI area
-    move_cursor(1, 1)
-    
-    # Info rows: album (or empty), track, artist
+    # Info rows: track, artist, (album or padding)
+    info_rows = [track_row(), artist_row()]
     if state.album:
-        info_rows = [album_row(), track_row(), artist_row()]
+        info_rows.insert(0, album_row())
     else:
-        info_rows = [row(("", Config.UI_WIDTH - 4, '<')), track_row(), artist_row()]
+        info_rows.append(row(("", Config.UI_WIDTH - 4, '<')))
     
     # Build all rows
     rows = [
@@ -276,8 +274,6 @@ def render_ui():
     for _ in range(ui_height, Config.UI_HEIGHT):
         sys.stdout.write("\033[K\n")
     
-    # Move cursor back to top for next refresh
-    move_cursor(1, 1)
     sys.stdout.flush()
     state.dirty = False
 # ─────────────────────────────────────────────────────────────────────────────
