@@ -131,12 +131,15 @@ class TestRunPlayerctl(unittest.TestCase):
 
     @patch("subprocess.run")
     def test_returns_stripped_output(self, mock_run):
-        """Should return stripped stdout."""
+        """Should return raw stdout (no strip).
+
+        Note: playerctl output for metadata may need leading newline preserved.
+        """
         mock_run.return_value = MagicMock(stdout="  output  \n", returncode=0)
 
         result = tpc.run_playerctl("metadata")
 
-        self.assertEqual(result, "output")
+        self.assertEqual(result, "  output  \n")
 
     @patch("subprocess.run")
     def test_returns_empty_on_error(self, mock_run):

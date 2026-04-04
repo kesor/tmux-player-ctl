@@ -430,7 +430,7 @@ def run_playerctl(*args) -> str:
     result = _playerctl_subprocess(list(args))
     if result.returncode != 0:
         return ""
-    return result.stdout.strip()
+    return result.stdout
 
 
 def start_metadata_follower() -> Optional[subprocess.Popen]:
