@@ -159,6 +159,36 @@ class TestCheckPlayerctl(unittest.TestCase):
         self.assertEqual(cm.exception.code, 1)
 
 
+class TestGetBestPlayer(unittest.TestCase):
+    """Test get_best_player() - selects Playing > Paused > first."""
+
+    @patch.object(tpc, "run_playerctl")
+    def test_returns_playing_player(self, mock_run):
+        """Should return first Playing player."""
+        mock_run.return_value = "Playing"
+        result = tpc.get_best_player(["spotify", "firefox", "vlc"])
+        self.assertEqual(result, "spotify")
+
+    @patch.object(tpc, "run_playerctl")
+    def test_returns_paused_when_no_playing(self, mock_run):
+        """Should return first Paused player when no Playing found."""
+        mock_run.return_value = "Paused"
+        result = tpc.get_best_player(["spotify", "firefox"])
+        self.assertEqual(result, "spotify")
+
+    @patch.object(tpc, "run_playerctl")
+    def test_returns_first_when_all_stopped(self, mock_run):
+        """Should return first player when all are Stopped."""
+        mock_run.return_value = "Stopped"
+        result = tpc.get_best_player(["spotify", "vlc"])
+        self.assertEqual(result, "spotify")
+
+    def test_empty_list_returns_none(self):
+        """Empty list returns None."""
+        result = tpc.get_best_player([])
+        self.assertIsNone(result)
+
+
 class TestConfigNoBG(unittest.TestCase):
     """Test Config - BG should no longer be in Config."""
 

@@ -289,6 +289,26 @@ def check_playerctl() -> None:
         sys.exit(1)
 
 
+def get_best_player(players: List[str]) -> Optional[str]:
+    """Select best player: Playing > Paused > first available."""
+    if not players:
+        return None
+    global current_player
+    for player in players:
+        prev, current_player = current_player, player
+        status = run_playerctl("status")
+        current_player = prev
+        if status and status.strip() == "Playing":
+            return player
+    for player in players:
+        prev, current_player = current_player, player
+        status = run_playerctl("status")
+        current_player = prev
+        if status and status.strip() == "Paused":
+            return player
+    return players[0]
+
+
 def _playerctl_subprocess(
     extra_args: Optional[List[str]] = None,
     timeout: float = 0.5,
