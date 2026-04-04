@@ -28,8 +28,6 @@ from typing import Optional, List
 class Config:
     UI_WIDTH = 72  # Width of the UI box
     SEEK_SECONDS = 10
-    # Background: 24-bit RGB like "0;0;0" for black
-    BG = os.environ.get("TPCTL_BG", "")  # e.g., "0;0;0" for black
 
 
 # Player tracking
@@ -442,6 +440,9 @@ def parse_metadata(raw: str) -> dict:
 class Theme:
     # Catppuccin Mocha palette (24-bit RGB: \033[38;2;R;G;Bm)
 
+    # Background: 24-bit RGB like "0;0;0" for black
+    BG = os.environ.get("TPCTL_BG", "")
+
     # Status colors
     PLAYING = os.environ.get("TPCTL_PLAYING", "\033[38;2;166;227;161m")  # green
     PAUSED = os.environ.get("TPCTL_PAUSED", "\033[38;2;249;226;175m")  # yellow
@@ -473,7 +474,7 @@ class Theme:
     VOL_EMPTY = os.environ.get("TPCTL_VOL_EMPTY", "\033[38;2;108;112;134m")  # overlay0
 
     # Reset includes background color so it's reapplied after each reset
-    RESET = f"\033[0m{'' if not Config.BG else f'\033[48;2;{Config.BG}m'}"
+    RESET = f"\033[0m{'' if not BG else f'\033[48;2;{BG}m'}"
 
 
 def status_color(status: str) -> str:
@@ -677,8 +678,8 @@ def update_state_from_metadata(data: dict):
 
 def clear_screen():
     sys.stdout.write("\033[2J\033[H")
-    if Config.BG:
-        sys.stdout.write(f"\033[48;2;{Config.BG}m")
+    if Theme.BG:
+        sys.stdout.write(f"\033[48;2;{Theme.BG}m")
     sys.stdout.flush()
 
 
@@ -885,8 +886,8 @@ def main():
     # Hide cursor
     sys.stdout.write("\033[?25l")
     # Set background color if configured
-    if Config.BG:
-        sys.stdout.write(f"\033[48;2;{Config.BG}m")
+    if Theme.BG:
+        sys.stdout.write(f"\033[48;2;{Theme.BG}m")
     sys.stdout.flush()
 
     try:

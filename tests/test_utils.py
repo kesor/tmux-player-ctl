@@ -116,6 +116,26 @@ class TestMoveCursor(unittest.TestCase):
         self.assertEqual(output, "\033[5;10H")
 
 
+class TestThemeBG(unittest.TestCase):
+    """Test Theme.BG - background color from environment."""
+
+    def test_theme_has_bg(self):
+        """Theme should have BG attribute."""
+        self.assertTrue(hasattr(tpc.Theme, "BG"))
+
+    def test_theme_bg_default_empty(self):
+        """Theme.BG default is empty string."""
+        self.assertEqual(tpc.Theme.BG, "")
+
+
+class TestConfigNoBG(unittest.TestCase):
+    """Test Config - BG should no longer be in Config."""
+
+    def test_config_no_bg(self):
+        """Config should not have BG attribute."""
+        self.assertFalse(hasattr(tpc.Config, "BG"))
+
+
 class TestResetState(unittest.TestCase):
     """Test that dead code has been removed."""
 
