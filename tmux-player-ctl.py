@@ -295,27 +295,25 @@ def reset_state():
     state.shuffle = "false"
     state.dirty = True
 
-def switch_player(pos_proc, meta_proc) -> tuple:
-    """Switch to next player."""
+def switch_player(meta_proc) -> Optional[subprocess.Popen]:
+    """Switch to next player. Returns new metadata follower process."""
     global current_player, current_player_idx, available_players
 
-    cleanup_proc(pos_proc)
     cleanup_proc(meta_proc)
 
     available_players = get_available_players()
     if not available_players:
         reset_state()
-        return None, None
+        return None
 
     current_player_idx = (current_player_idx + 1) % len(available_players)
     current_player = available_players[current_player_idx]
 
-    new_pos_proc = start_position_follower()
     new_meta_proc = start_metadata_follower()
 
-    if new_pos_proc is None or new_meta_proc is None:
+    if new_meta_proc is None:
         reset_state()
-        return new_pos_proc, new_meta_proc
+        return None
 
     result = run_playerctl("--format", METADATA_FORMAT, "metadata")
     if result:
@@ -327,7 +325,7 @@ def switch_player(pos_proc, meta_proc) -> tuple:
         state.status = "Stopped"
         state.dirty = True
 
-    return new_pos_proc, new_meta_proc
+    return new_meta_proc
 
 def run_playerctl(*args) -> str:
     """Run playerctl command, return stdout stripped."""
@@ -343,20 +341,6 @@ def run_playerctl(*args) -> str:
         return result.stdout.strip()
     except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
         return ""
-
-def start_position_follower() -> Optional[subprocess.Popen]:
-    """Start background position follower."""
-    try:
-        # Use --format '{{position}}' with --follow to get continuous updates
-        proc = subprocess.Popen(
-            ["playerctl"] + player_args() + ["--format", "{{position}}", "--follow", "position"],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL
-        )
-        processes.append(proc)
-        return proc
-    except OSError:
-        return None
 
 def start_metadata_follower() -> Optional[subprocess.Popen]:
     """Start background metadata follower."""
@@ -948,7 +932,6 @@ def main():
             state.status = "No MPRIS player"
             state.dirty = True
 
-        pos_proc = start_position_follower() if current_player else None
         meta_proc = start_metadata_follower() if current_player else None
 
         clear_screen()
@@ -973,8 +956,6 @@ def main():
 
         def build_select_list():
             fds = []
-            if pos_proc and pos_proc.stdout:
-                fds.append(pos_proc.stdout)
             if meta_proc and meta_proc.stdout:
                 fds.append(meta_proc.stdout)
             if stdin_fd is not None:
@@ -987,23 +968,6 @@ def main():
                 time.sleep(0.1)
                 continue
             readable, _, _ = select.select(fds, [], [], 0.5)
-
-            if pos_proc and pos_proc.stdout in readable:
-                # Read position line
-                try:
-                    ch = os.read(pos_proc.stdout.fileno(), 64)
-                    if ch:
-                        # May have multiple lines, take last non-empty
-                        for line in reversed(ch.split(b'\n')):
-                            if line.strip():
-                                state.position = float(line.strip()) / 1_000_000
-                                state.dirty = True
-                                break
-                except OSError:
-                    pass
-                if pos_proc.poll() is not None:
-                    cleanup_proc(pos_proc)
-                    pos_proc = start_position_follower() if current_player else None
 
             if meta_proc and meta_proc.stdout in readable:
                 # Read metadata - METADATA_FORMAT has 39 fields joined by \n
@@ -1037,7 +1001,7 @@ def main():
                     ch = c.decode('utf-8', errors='replace')
 
                     if ch == '\t':
-                        pos_proc, meta_proc = switch_player(pos_proc, meta_proc)
+                        meta_proc = switch_player(meta_proc)
                     elif ch == '\x1b':
                         r, _, _ = select.select([stdin_fd], [], [], 0.02)
                         if stdin_fd in r:
