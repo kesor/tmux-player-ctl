@@ -326,7 +326,7 @@ def reset_state():
     state.album = ""
     state.position = 0.0
     state.length = 0.0
-    state.volume = 0.0
+    state.volume = 0
     state.loop = "None"
     state.shuffle = "false"
     state.dirty = True
