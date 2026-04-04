@@ -238,41 +238,27 @@ def cleanup_proc(proc: Optional[subprocess.Popen]) -> None:
 
 def render_ui():
     """Render the full UI to stdout."""
-    # Info rows: track, artist, (album or padding)
-    info_rows = [track_row(), artist_row()]
-    if state.album:
-        info_rows.insert(0, album_row())
-    else:
-        info_rows.append(row(("", Config.UI_WIDTH - 4, '<')))
-    
     # Build all rows
     rows = [
         border_top(),
         header_row(),
         border_mid(),
-    ]
-    rows.extend(info_rows)
-    rows.extend([
+        album_row(),
+        track_row(),
+        artist_row(),
         border_mid(),
         progress_row(),
         volume_row(),
         border_mid(),
         toolbar_row(),
         border_bot(),
-    ])
+    ]
     
-    # Calculate dynamic UI height
-    ui_height = len(rows)
-    
-    # Print rows with clears to remove old content below
-    for row_text in rows:
-        sys.stdout.write(row_text)
-        # Clear to end of line
-        sys.stdout.write("\033[K\n")
-    
-    # Clear remaining lines from old content
-    for _ in range(ui_height, Config.UI_HEIGHT):
-        sys.stdout.write("\033[K\n")
+    # Write all lines with explicit cursor positioning (no newlines)
+    sys.stdout.write("\033[J")  # Clear from cursor to end of screen
+    for i, line in enumerate(rows):
+        move_cursor(1 + i, 1)
+        sys.stdout.write(line)
     
     sys.stdout.flush()
     state.dirty = False
