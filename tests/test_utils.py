@@ -116,7 +116,7 @@ class TestMoveCursor(unittest.TestCase):
         self.assertEqual(output, "\033[5;10H")
 
 
-class TestDeadCodeRemoval(unittest.TestCase):
+class TestResetState(unittest.TestCase):
     """Test that dead code has been removed."""
 
     def test_no_cursor_move_pattern(self):
@@ -124,7 +124,7 @@ class TestDeadCodeRemoval(unittest.TestCase):
         self.assertFalse(hasattr(tpc, "CURSOR_MOVE_PATTERN"))
 
 
-class TestResetState(unittest.TestCase):
+class TestResetStateFull(unittest.TestCase):
     """Test reset_state() - resets player state."""
 
     def setUp(self):
@@ -169,6 +169,25 @@ class TestResetState(unittest.TestCase):
         tpc.state.dirty = False
         tpc.reset_state()
         self.assertTrue(tpc.state.dirty)
+
+    def test_resets_pre_mute_volume(self):
+        """Should reset pre_mute_volume to default (50)."""
+        tpc.state.pre_mute_volume = 75
+        tpc.reset_state()
+        self.assertEqual(tpc.state.pre_mute_volume, 50)
+
+    def test_uses_fresh_player_state(self):
+        """reset_state() creates a fresh PlayerState to avoid stale fields."""
+        tpc.state.title = "Old Title"
+        tpc.state.pre_mute_volume = 75
+        tpc.state.artist = "Old Artist"
+        tpc.reset_state()
+        # All fields should match fresh PlayerState defaults
+        fresh = tpc.PlayerState()
+        self.assertEqual(tpc.state.title, fresh.title)
+        self.assertEqual(tpc.state.pre_mute_volume, fresh.pre_mute_volume)
+        self.assertEqual(tpc.state.artist, fresh.artist)
+        self.assertEqual(tpc.state.status, "No player")  # reset_state sets this
 
 
 if __name__ == "__main__":

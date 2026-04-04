@@ -293,18 +293,10 @@ def player_args() -> List[str]:
 
 
 def reset_state():
-    """Reset all state fields."""
-    state.player = ""
-    state.status = "No player"
-    state.title = ""
-    state.artist = ""
-    state.album = ""
-    state.position = 0.0
-    state.length = 0.0
-    state.volume = 0
-    state.loop = "None"
-    state.shuffle = "false"
-    state.dirty = True
+    """Reset all state fields with a fresh PlayerState."""
+    global state
+    state = PlayerState()
+    state.status = "No player"  # Override default "" with explicit no-player message
 
 
 def switch_player(meta_proc) -> Optional[subprocess.Popen]:
