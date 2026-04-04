@@ -194,14 +194,17 @@ class TestHandleKeyVolume(unittest.TestCase):
     def setUp(self):
         # Create fresh state
         self._orig_state = tpc.state
+        self._orig_last_cmd = tpc.last_command_time
         tpc.state = tpc.PlayerState()
         tpc.state.volume = 50
         tpc.state.position = 60.0
         tpc.state.length = 180.0
         tpc.state.status = "Playing"
+        tpc.last_command_time = 0
 
     def tearDown(self):
         tpc.state = self._orig_state
+        tpc.last_command_time = self._orig_last_cmd
 
     @patch.object(tpc, "run_playerctl_async")
     def test_volume_up_sends_float(self, mock_run):
@@ -286,7 +289,8 @@ class TestHandleKeyVolume(unittest.TestCase):
         self.assertEqual(tpc.state.volume, 0)
         self.assertEqual(tpc.state.pre_mute_volume, 80)  # Stored before mute
 
-        # Unmute
+        # Unmute (reset cooldown to allow rapid call)
+        tpc.last_command_time = 0
         tpc.handle_key("m", "")
         args = mock_run.call_args  # Get last call
         self.assertEqual(args[0][0], "volume")

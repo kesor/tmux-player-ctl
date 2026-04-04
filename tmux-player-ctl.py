@@ -171,6 +171,7 @@ METADATA_FORMAT = "\n".join(
 
 # Debounce follower updates after commands (in seconds)
 COMMAND_DEBOUNCE = 0.3
+COMMAND_COOLDOWN = 0.05  # Minimum time between async calls
 last_command_time = 0.0
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -804,6 +805,11 @@ def handle_key(key: str, seq: str = "") -> None:
     global last_command_time
     import time
 
+    now = time.time()
+    if key != "q" and key != "Q" and key != "\x1b" and now - last_command_time < COMMAND_COOLDOWN:
+        return  # Ignore rapid repeats
+    last_command_time = now
+
     if key in {"q", "Q"} or (key == "\x1b" and not seq):
         cleanup()
         sys.exit(0)
@@ -816,7 +822,6 @@ def handle_key(key: str, seq: str = "") -> None:
             vol_arg = f"{vol / 100:.2f}"
             run_playerctl_async("volume", vol_arg)
             state.volume = vol
-            last_command_time = time.time()
         elif seq == "[B":
             # Volume down: volume is int 0-100
             vol = max(0, state.volume - 5)
@@ -824,17 +829,14 @@ def handle_key(key: str, seq: str = "") -> None:
             vol_arg = f"{vol / 100:.2f}"
             run_playerctl_async("volume", vol_arg)
             state.volume = vol
-            last_command_time = time.time()
         elif seq == "[C":
             # Seek forward: optimistic update
             state.position = min(state.length, state.position + Config.SEEK_SECONDS)
             run_playerctl_async("position", f"+{Config.SEEK_SECONDS}")
-            last_command_time = time.time()
         elif seq == "[D":
             # Seek backward: optimistic update
             state.position = max(0, state.position - Config.SEEK_SECONDS)
             run_playerctl_async("position", f"-{Config.SEEK_SECONDS}")
-            last_command_time = time.time()
         else:
             return
         state.dirty = True
@@ -847,7 +849,6 @@ def handle_key(key: str, seq: str = "") -> None:
         else:
             state.status = "Playing"
         run_playerctl_async("play-pause")
-        last_command_time = time.time()
     elif key in {"n", "N"}:
         run_playerctl_async("next")
     elif key in {"p", "P"}:
