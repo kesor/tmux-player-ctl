@@ -973,30 +973,13 @@ def main():
 
     try:
         available_players = get_available_players()
-
-        # Try to find a player that responds to metadata queries
-        # If no player works, we'll still show the first one as "stopped"
-        current_player = ""
-        if available_players:
-            for idx, player in enumerate(available_players):
-                # Temporarily use this player to try metadata query
-                _saved_player = current_player
-                current_player = player
-                initial = run_playerctl("--format", METADATA_FORMAT, "metadata")
-                if initial:
-                    current_player_idx = idx
-                    update_state_from_metadata(parse_metadata(initial))
-                    break
-                current_player = _saved_player
-
-            # If no player responded, use the first one anyway
-            if not current_player and available_players:
-                current_player_idx = 0
-                current_player = available_players[0]
-                state.player = current_player
-                state.status = "Stopped"
-                state.dirty = True
+        current_player = get_best_player(available_players) or ""
+        if current_player:
+            current_player_idx = available_players.index(current_player)
+            state.player = current_player
+            state.dirty = True
         else:
+            current_player_idx = -1
             state.status = "No MPRIS player"
             state.dirty = True
 
