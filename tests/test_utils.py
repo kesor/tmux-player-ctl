@@ -54,6 +54,11 @@ class TestFormatPlayerName(unittest.TestCase):
         result = tpc._format_player_name("spotify.instance123")
         self.assertEqual(result, "spotify")
 
+    def test_empty_name(self):
+        """Empty name returns empty string."""
+        result = tpc._format_player_name("")
+        self.assertEqual(result, "")
+
 
 class TestPlayerArgs(unittest.TestCase):
     """Test player_args() - returns playerctl arguments."""

@@ -203,11 +203,11 @@ class TestHandleKeyVolume(unittest.TestCase):
     def tearDown(self):
         tpc.state = self._orig_state
 
-    @patch.object(tpc, "run_playerctl")
+    @patch.object(tpc, "run_playerctl_async")
     def test_volume_up_sends_float(self, mock_run):
         """Volume up should send float to playerctl."""
         tpc.handle_key("\x1b", "[A")  # Arrow up
-        # Should have called run_playerctl with volume
+        # Should have called run_playerctl_async with volume
         args = mock_run.call_args
         self.assertEqual(args[0][0], "volume")
         # Should be formatted as float string
@@ -216,7 +216,7 @@ class TestHandleKeyVolume(unittest.TestCase):
         # Volume should have increased
         self.assertEqual(tpc.state.volume, 55)
 
-    @patch.object(tpc, "run_playerctl")
+    @patch.object(tpc, "run_playerctl_async")
     def test_volume_down_sends_float(self, mock_run):
         """Volume down should send float to playerctl."""
         tpc.handle_key("\x1b", "[B")  # Arrow down
@@ -227,21 +227,21 @@ class TestHandleKeyVolume(unittest.TestCase):
         # Volume should have decreased
         self.assertEqual(tpc.state.volume, 45)
 
-    @patch.object(tpc, "run_playerctl")
+    @patch.object(tpc, "run_playerctl_async")
     def test_volume_up_at_max_stays_100(self, mock_run):
         """Volume up at 100 stays at 100."""
         tpc.state.volume = 100
         tpc.handle_key("\x1b", "[A")
         self.assertEqual(tpc.state.volume, 100)
 
-    @patch.object(tpc, "run_playerctl")
+    @patch.object(tpc, "run_playerctl_async")
     def test_volume_down_at_min_stays_0(self, mock_run):
         """Volume down at 0 stays at 0."""
         tpc.state.volume = 0
         tpc.handle_key("\x1b", "[B")
         self.assertEqual(tpc.state.volume, 0)
 
-    @patch.object(tpc, "run_playerctl")
+    @patch.object(tpc, "run_playerctl_async")
     def test_mute_sets_volume_0(self, mock_run):
         """Mute should set volume to 0."""
         tpc.state.volume = 75
@@ -253,7 +253,7 @@ class TestHandleKeyVolume(unittest.TestCase):
         # Should store the pre-mute volume
         self.assertEqual(tpc.state.pre_mute_volume, 75)
 
-    @patch.object(tpc, "run_playerctl")
+    @patch.object(tpc, "run_playerctl_async")
     def test_unmute_restores_stored_volume(self, mock_run):
         """Unmute should restore to stored pre-mute volume."""
         tpc.state.volume = 0
@@ -264,7 +264,7 @@ class TestHandleKeyVolume(unittest.TestCase):
         self.assertEqual(args[0][1], "0.75")  # 75% as float
         self.assertEqual(tpc.state.volume, 75)
 
-    @patch.object(tpc, "run_playerctl")
+    @patch.object(tpc, "run_playerctl_async")
     def test_unmute_falls_back_to_50(self, mock_run):
         """Unmute with no stored volume should fall back to 50."""
         tpc.state.volume = 0
@@ -275,7 +275,7 @@ class TestHandleKeyVolume(unittest.TestCase):
         self.assertEqual(args[0][1], "0.50")  # Default 50%
         self.assertEqual(tpc.state.volume, 50)
 
-    @patch.object(tpc, "run_playerctl")
+    @patch.object(tpc, "run_playerctl_async")
     def test_mute_then_unmute_restores_volume(self, mock_run):
         """Mute then unmute cycle should restore original volume."""
         tpc.state.volume = 80

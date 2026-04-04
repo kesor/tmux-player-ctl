@@ -618,6 +618,50 @@ class TestMetadataParse(unittest.TestCase):
             result = tpc.parse_metadata(raw)
             self.assertEqual(result["volume"], expected, f"{vol_float} -> {expected}")
 
+    def test_metadata_parse_short_input(self):
+        """Short input returns empty dict."""
+        result = tpc.parse_metadata("field1\nfield2")
+        self.assertEqual(result, {})
+
+    def test_metadata_parse_invalid_position(self):
+        """Invalid position float returns empty dict."""
+        raw = make_metadata(position="not_a_number")
+        result = tpc.parse_metadata(raw)
+        self.assertEqual(result, {})
+
+    def test_metadata_parse_invalid_length(self):
+        """Invalid length float returns empty dict."""
+        raw = make_metadata(length="also_invalid")
+        result = tpc.parse_metadata(raw)
+        self.assertEqual(result, {})
+
+    def test_metadata_parse_partial_fields(self):
+        """Partial fields (passes < 10 check) but triggers IndexError."""
+        # 15 fields: passes len check but parts[31] raises IndexError
+        raw = "\n".join(["p"] * 15)
+        result = tpc.parse_metadata(raw)
+        self.assertEqual(result, {})
+
+
+class TestVolumeIcon(unittest.TestCase):
+    """Test _volume_icon() - returns icon name for volume level."""
+
+    def test_volume_icon_muted(self):
+        result = tpc._volume_icon(0)
+        self.assertEqual(result, "vol-muted")
+
+    def test_volume_icon_low(self):
+        result = tpc._volume_icon(32)
+        self.assertEqual(result, "vol-low")
+
+    def test_volume_icon_medium(self):
+        result = tpc._volume_icon(65)
+        self.assertEqual(result, "vol-med")
+
+    def test_volume_icon_high(self):
+        result = tpc._volume_icon(100)
+        self.assertEqual(result, "vol-high")
+
 
 class TestLayout(unittest.TestCase):
     """Test layout concerns - positioning and width."""

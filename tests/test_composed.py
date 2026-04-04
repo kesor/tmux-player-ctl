@@ -177,6 +177,12 @@ class TestInfoRow(unittest.TestCase):
         result = tpc.artist_row()
         self.assertIn("Test Artist", result)
 
+    def test_info_row_direct(self):
+        """_info_row builds row with label and value."""
+        result = tpc._info_row("Label:", "Value")
+        self.assertIn("Label:", result)
+        self.assertIn("Value", result)
+
     def test_info_rows_width(self):
         """Info rows span full UI_WIDTH."""
 
