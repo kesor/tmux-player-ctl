@@ -313,10 +313,17 @@ def render_ui():
 
 
 def get_available_players() -> List[str]:
-    result = _playerctl_subprocess(["--list-all"])
-    if result.returncode != 0:
+    """List all available MPRIS players. Does NOT use player_args (no -p flag)."""
+    try:
+        result = subprocess.run(
+            ["playerctl", "--list-all"],
+            capture_output=True, text=True, timeout=1,
+        )
+        if result.returncode != 0:
+            return []
+        return [p.strip() for p in result.stdout.strip().split("\n") if p.strip()]
+    except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
         return []
-    return [p.strip() for p in result.stdout.strip().split("\n") if p.strip()]
 
 
 def check_playerctl() -> None:

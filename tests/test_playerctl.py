@@ -187,6 +187,19 @@ class TestGetAvailablePlayers(unittest.TestCase):
 
         self.assertEqual(result, [])
 
+    @patch("subprocess.run")
+    def test_ignores_current_player(self, mock_run):
+        """Should not pass -p flag even when current_player is set."""
+        tpc.current_player = "spotify"
+        mock_run.return_value = MagicMock(stdout="spotify\nvlc\n", returncode=0)
+
+        tpc.get_available_players()
+
+        # Must NOT include -p flag
+        call_args = mock_run.call_args[0][0]
+        self.assertNotIn("-p", call_args)
+        self.assertIn("--list-all", call_args)
+
 
 class TestHandleKeyVolume(unittest.TestCase):
     """Test handle_key() volume commands with mocked run_playerctl."""
