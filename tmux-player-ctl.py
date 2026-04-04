@@ -27,7 +27,6 @@ from typing import Optional, List
 
 class Config:
     UI_WIDTH = 72  # Width of the UI box
-    UI_HEIGHT = 12  # Number of rows in the UI
     SEEK_SECONDS = 10
     # Background: 24-bit RGB like "0;0;0" for black
     BG = os.environ.get("TPCTL_BG", "")  # e.g., "0;0;0" for black
