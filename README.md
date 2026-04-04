@@ -26,9 +26,9 @@ A minimal tmux popup controller for MPRIS media players via `playerctl`.
 
 | Key | Action |
 |-----|--------|
-| `Space` / `p` | Toggle play/pause |
+| `Space` | Toggle play/pause |
+| `p` | Previous track |
 | `n` | Next track |
-| `b` | Previous track |
 | `←` / `→` | Seek back/forward 10s |
 | `↑` / `↓` | Volume up/down 5% |
 | `s` | Toggle shuffle |

@@ -886,7 +886,7 @@ def handle_key(key: str, seq: str = "") -> None:
         state.dirty = True
         return
 
-    if key in {' ', 'p', 'P'}:
+    if key == ' ':
         # Optimistic update
         if state.status == "Playing":
             state.status = "Paused"
@@ -896,7 +896,7 @@ def handle_key(key: str, seq: str = "") -> None:
         last_command_time = time.time()
     elif key in {'n', 'N'}:
         run_playerctl("next")
-    elif key in {'b', 'B'}:
+    elif key in {'p', 'P'}:
         run_playerctl("previous")
     elif key in {'s', 'S'}:
         run_playerctl("shuffle", "Toggle")
