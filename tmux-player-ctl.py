@@ -70,6 +70,10 @@ ICONS = {
     "shuffle": "\U0001f500\ufe0e",  # 🔀
     "repeat": "\U0001f501\ufe0e",  # 🔁
     "repeat-one": "\U0001f502\ufe0e",  # 🔂
+    # Tools
+    "seek": '←→',
+    "vol-change": '↑↓',
+    "toggle-play": '␣',
 }
 
 
@@ -547,7 +551,7 @@ def header_row() -> str:
     player_name = f" {truncate(_format_player_name(state.player), player_w - 2)} "
 
     if len(available_players) > 1:
-        switch_text = f"{colorize(ICONS['tab'], Theme.KEY_HINT):^2} switch"
+        switch_text = f"{colorize(icon('tab'), Theme.KEY_HINT):^2} switch"
     else:
         switch_text = ""
 
@@ -619,14 +623,14 @@ def toolbar_row():
     inner = Config.UI_WIDTH - 4
 
     # Build each tool
-    seek = f"{colorize('←→', Theme.KEY_HINT)} seek"  # 7
-    vol = f"{colorize('↑↓', Theme.KEY_HINT)} volume"  # 9
+    seek = f"{colorize(icon('seek'), Theme.KEY_HINT)} seek"  # 7
+    vol = f"{colorize(icon('vol-change'), Theme.KEY_HINT)} volume"  # 9
     mute = f"{colorize('m', Theme.KEY_HINT)}ute"  # 4
 
     if state.status == "Playing":
-        play_pause = f"{colorize('␣', Theme.KEY_HINT)} pause"  # 7
+        play_pause = f"{colorize(icon('toggle-play'), Theme.KEY_HINT)} pause"  # 7
     else:
-        play_pause = f"{colorize('␣', Theme.KEY_HINT)} play "
+        play_pause = f"{colorize(icon('toggle-play'), Theme.KEY_HINT)} play "
 
     prev = f"{colorize('p', Theme.KEY_HINT)}rev"  # 4
     next_ = f"{colorize('n', Theme.KEY_HINT)}ext"  # 4
