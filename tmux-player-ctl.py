@@ -166,10 +166,12 @@ class PlayerTracker:
     last_command_time: float = 0.0
     meta_proc: Optional["subprocess.Popen"] = None
     _meta_buf: str = ""  # Buffer for metadata follower output
+    _initial_state_shown: bool = False  # Track if initial state has been displayed
 
     def __init__(self) -> None:
         self.state = PlayerState()
         self._meta_buf = ""
+        self._initial_state_shown = False
 
 
 s = PlayerTracker()
@@ -458,6 +460,7 @@ def switch_player() -> Optional[subprocess.Popen]:
         s.current_player_idx = -1
         s.meta_proc = None
         s._meta_buf = ""  # Clear buffer when no players
+        s._initial_state_shown = False
         return None
 
     # Handle case where previous player is no longer available
@@ -470,6 +473,7 @@ def switch_player() -> Optional[subprocess.Popen]:
     # Reset state so stale metadata from previous player doesn't linger
     reset_state()
     s._meta_buf = ""  # Clear buffer when switching players
+    s._initial_state_shown = False  # Reset flag for new player
     s.state.player = s.current_player
     # Query shuffle and loop state (not in metadata follower)
     s.state.shuffle = run_playerctl("shuffle").strip() or "false"
@@ -1388,10 +1392,14 @@ def _extract_complete_metadata_blocks(data: str) -> List[str]:
     Block format from playerctl:
     \n@0@playerName\n@1@status\n@2@title...
 
-    Strategy: Only extract blocks when we see TWO complete blocks.
-    This ensures we never extract a partial block.
+    Strategy:
+    - First block: extract immediately for fast initial display
+    - Subsequent blocks: wait for 2 complete blocks (conservative)
     """
     global s
+
+    # Check if this is the first data (buffer was empty)
+    was_empty = s._meta_buf == ""
 
     # Append new data to buffer
     s._meta_buf += data
@@ -1411,8 +1419,18 @@ def _extract_complete_metadata_blocks(data: str) -> List[str]:
     # Find second \n@0@ (marks start of second block = end of first complete block)
     remaining_after_first = s._meta_buf[first_start + 4:]  # Skip past \n@0@
     second_match = re.search(r'\n@0@', remaining_after_first)
+
     if not second_match:
-        # Only one potential block - keep as partial, don't extract
+        # Only one potential block
+        if was_empty and not s._initial_state_shown:
+            # First block for initial display - extract immediately
+            block = s._meta_buf[first_start:]
+            complete_blocks.append(block)
+            s._meta_buf = ""
+            # Mark that we've shown initial state
+            s._initial_state_shown = True
+            return complete_blocks
+        # Keep as partial, don't extract yet
         s._meta_buf = s._meta_buf[first_start:]
         return complete_blocks
 
@@ -1534,6 +1552,7 @@ def main():
                 if s.meta_proc.poll() is not None:
                     cleanup_proc(s.meta_proc)
                     s._meta_buf = ""  # Clear buffer when follower restarts
+                    s._initial_state_shown = False  # Reset for new follower
                     s.meta_proc = start_metadata_follower() if s.current_player else None
 
             if stdin_fd is not None and stdin_fd in readable:
