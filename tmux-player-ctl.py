@@ -831,7 +831,7 @@ def _track_row_slots(title: str, track_number: str, track_count: int):
         tw = Config.INNER_W - lw - gap
 
     # Truncate title if needed
-    title_text = truncate(title, tw) if tw > 0 else ""
+    title_text = truncate(title, tw - 1) if tw > 0 else ""
 
     label_colored = colorize(f"{'Track:':>{lw}}", Theme.DIM)
 
