@@ -1140,14 +1140,16 @@ def _color_rgb(color_seq: str) -> str:
 
 
 def volume_bar(volume: int, width: int) -> str:
-    """Build VU-meter style volume bar with dithered color gradient.
+    """Build VU-meter style volume bar with optimized ANSI.
     
     Zones: green (0-50%), yellow (50-80%), red (80-100%)
-    Transitions use half-block characters (▒▓█) with FG/BG color mixing.
+    Transitions use half-block character (▒) with FG/BG color mixing.
     Empty section uses dimmed color for both FG and BG.
+    
+    Optimization: Only emit ANSI sequences when color changes.
     """
     if volume == 0:
-        # Muted: dimmed FG and BG
+        # Muted: dimmed FG and BG - one sequence for whole bar
         return f"\033[38;2;{_color_rgb(Theme.VOL_EMPTY)}m\033[48;2;{_color_rgb(Theme.VOL_EMPTY)}m{'░' * width}{Theme.RESET}"
     
     filled = min(int(volume * width // 100), width)
@@ -1156,39 +1158,46 @@ def volume_bar(volume: int, width: int) -> str:
     green_zone_end = int(width * 0.50)   # exclusive
     yellow_zone_end = int(width * 0.80)  # exclusive
     
+    result = []
+    prev_color = None
+    
+    # Pre-compute RGB values for transitions (dithered blocks need FG/BG mix)
+    green_rgb = _color_rgb(Theme.VOL_LOW)
+    yellow_rgb = _color_rgb(Theme.VOL_MED)
+    red_rgb = _color_rgb(Theme.VOL_HIGH)
     empty_rgb = _color_rgb(Theme.VOL_EMPTY)
     
-    result = []
+    def emit(char: str, ansi_seq: str) -> None:
+        """Emit character with ANSI color sequence if different from previous."""
+        nonlocal prev_color
+        if ansi_seq != prev_color:
+            result.append(ansi_seq)
+            prev_color = ansi_seq
+        result.append(char)
+    
     for i in range(width):
         if i < filled:
             # Determine zone and whether we're in transition
             if i < green_zone_end:
                 # Green zone
                 if filled > green_zone_end and i == green_zone_end - 1:
-                    # At boundary, transitioning to yellow
-                    block = "▒"
-                    fg_rgb = _color_rgb(Theme.VOL_MED)
-                    bg_rgb = _color_rgb(Theme.VOL_LOW)
-                    result.append(f"\033[38;2;{fg_rgb}m\033[48;2;{bg_rgb}m{block}")
+                    # At boundary, transitioning to yellow - dithered block
+                    emit("▒", f"\033[38;2;{yellow_rgb}m\033[48;2;{green_rgb}m")
                 else:
-                    result.append(f"{Theme.VOL_LOW}█")
+                    emit("█", Theme.VOL_LOW)
             elif i < yellow_zone_end:
                 # Yellow zone
                 if filled > yellow_zone_end and i == yellow_zone_end - 1:
-                    # At boundary, transitioning to red
-                    block = "▒"
-                    fg_rgb = _color_rgb(Theme.VOL_HIGH)
-                    bg_rgb = _color_rgb(Theme.VOL_MED)
-                    result.append(f"\033[38;2;{fg_rgb}m\033[48;2;{bg_rgb}m{block}")
+                    # At boundary, transitioning to red - dithered block
+                    emit("▒", f"\033[38;2;{red_rgb}m\033[48;2;{yellow_rgb}m")
                 else:
-                    result.append(f"{Theme.VOL_MED}█")
+                    emit("█", Theme.VOL_MED)
             else:
                 # Red zone
-                result.append(f"{Theme.VOL_HIGH}█")
+                emit("█", Theme.VOL_HIGH)
         else:
-            # Empty: reset all, then set dimmed FG and BG using VOL_EMPTY theme color
-            empty_rgb = _color_rgb(Theme.VOL_EMPTY)
-            result.append(f"\033[0m\033[38;2;{empty_rgb}m\033[48;2;{empty_rgb}m░")
+            # Empty section - use VOL_EMPTY RGB for both FG and BG
+            emit("░", f"\033[38;2;{empty_rgb}m\033[48;2;{empty_rgb}m")
     
     return "".join(result) + Theme.RESET
 
