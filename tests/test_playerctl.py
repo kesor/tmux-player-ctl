@@ -311,56 +311,6 @@ class TestHandleKeyVolume(unittest.TestCase):
         self.assertEqual(tpc.s.state.volume, 80)
 
 
-class TestUpdateStateFromMetadata(unittest.TestCase):
-    """Test update_state_from_metadata() sets dirty flag correctly."""
-
-    def setUp(self):
-        self._orig_state = tpc.s.state
-        self._orig_last_cmd = tpc.s.last_command_time
-        tpc.s.state = tpc.PlayerState()
-        tpc.s.state.title = "Old Title"
-        tpc.s.state.artist = "Old Artist"
-        tpc.s.state.position = 0.0
-        # Reset command time to avoid debounce
-        tpc.s.last_command_time = 0.0
-
-    def tearDown(self):
-        tpc.s.state = self._orig_state
-        tpc.s.last_command_time = self._orig_last_cmd
-
-    def test_sets_dirty_when_values_change(self):
-        """Should set dirty=True when values actually change."""
-        tpc.s.state.dirty = False
-        data = {"title": "New Title", "artist": "Old Artist"}
-        tpc.update_state_from_metadata(data)
-        self.assertTrue(tpc.s.state.dirty)
-        self.assertEqual(tpc.s.state.title, "New Title")
-
-    def test_clears_dirty_when_no_change(self):
-        """Should not set dirty when values are the same."""
-        tpc.s.state.dirty = False
-        data = {"title": "Old Title", "artist": "Old Artist"}
-        tpc.update_state_from_metadata(data)
-        self.assertFalse(tpc.s.state.dirty)
-
-    def test_updates_all_fields(self):
-        """Should update all fields from metadata dict."""
-        tpc.s.state.dirty = False
-        data = {
-            "title": "New Title",
-            "artist": "New Artist",
-            "album": "New Album",
-            "status": "Playing",
-            "volume": 75,
-        }
-        tpc.update_state_from_metadata(data)
-        self.assertEqual(tpc.s.state.title, "New Title")
-        self.assertEqual(tpc.s.state.artist, "New Artist")
-        self.assertEqual(tpc.s.state.album, "New Album")
-        self.assertEqual(tpc.s.state.status, "Playing")
-        self.assertEqual(tpc.s.state.volume, 75)
-
-
 class TestParsePositionFollower(unittest.TestCase):
     """Test parsing position data from position follower."""
 

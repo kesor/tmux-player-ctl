@@ -789,10 +789,12 @@ def update_state_from_metadata(data: dict):
 
 
 def clear_screen():
+    global s
     sys.stdout.write("\033[2J\033[H")
     if Theme.BG:
         sys.stdout.write(f"\033[48;2;{Theme.BG}m")
     sys.stdout.flush()
+    s.state.dirty = False
 
 
 def move_cursor(row: int, col: int):
