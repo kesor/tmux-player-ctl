@@ -649,8 +649,10 @@ def header_row() -> str:
     global s
     status_w = 12  # 2 icon + 1 space + 9 max "recording"
     switch_w = 9  # 2 icon + 1 space + 6 "switch"
-    inner_w = Config.INNER_W
-    player_w = inner_w - status_w - switch_w
+    # -2 for the 2 spaces row() adds between slots (total 12+1+47+1+9=70)
+    # plus row() format adds 2 more: │ {content} │ = 74
+    # For row to be 72, content should be 70, so player_w = 47 - 2 = 45
+    player_w = Config.INNER_W - status_w - switch_w - 2
 
     status_icon = icon(_status_icon(s.state.status))
     status_text = colorize(
