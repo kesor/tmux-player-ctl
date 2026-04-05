@@ -52,7 +52,8 @@ class TestHeaderRowWidth(unittest.TestCase):
         visible = strip_visible(result)
         # Content: slot1(12) + space(1) + slot2(45) + space(1) + slot3(9) = 68
         # Total with row format: │ space(1) + content(68) + space(1) + │ = 72
-        self.assertEqual(len(visible), 72)
+        # Use visible_width to account for any combining characters
+        self.assertEqual(tpc.visible_width(visible), 72)
 
     def test_header_width_with_single_player(self):
         """Header with single player (no switch) should have correct width."""
@@ -65,7 +66,8 @@ class TestHeaderRowWidth(unittest.TestCase):
 
         # With single player, switch is empty but still takes slot width
         # Total should be 72
-        self.assertEqual(len(visible), 72, f"Header should be 72 chars: {repr(visible)}")
+        self.assertEqual(tpc.visible_width(visible), 72,
+            f"Header should be 72 visible chars: {repr(visible)}")
 
     def test_header_width_empty_state(self):
         """Header with empty state should have correct width."""
@@ -76,7 +78,8 @@ class TestHeaderRowWidth(unittest.TestCase):
         result = tpc.header_row()
         visible = strip_visible(result)
 
-        self.assertEqual(len(visible), 72, f"Header should be 72 chars: {repr(visible)}")
+        self.assertEqual(tpc.visible_width(visible), 72,
+            f"Header should be 72 visible chars: {repr(visible)}")
 
     def test_pad_visible_cjk_wide_characters(self):
         """pad_visible should correctly handle CJK characters (2 columns each)."""

@@ -73,7 +73,11 @@ class TestHeaderDoubleRender(unittest.TestCase):
         h2 = tpc.header_row()
         v2 = strip_visible(h2)
 
-        self.assertEqual(len(v1), len(v2), f"Headers should be same width: {len(v1)} vs {len(v2)}")
+        # Use visible_width to account for combining characters
+        w1 = tpc.visible_width(v1)
+        w2 = tpc.visible_width(v2)
+        self.assertEqual(w1, w2, f"Headers should be same width: {w1} vs {w2}")
+        self.assertEqual(w1, 72, f"Header should be 72 visible chars, got {w1}")
 
 
 if __name__ == "__main__":

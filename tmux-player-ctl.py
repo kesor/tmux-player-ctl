@@ -17,6 +17,7 @@ import subprocess
 import select
 import time
 import re
+import shutil
 from dataclasses import dataclass
 from typing import Optional, List
 
@@ -30,6 +31,33 @@ class Config:
     UI_WIDTH = 72  # Width of the UI box
     INNER_W = UI_WIDTH - 4  # Content area width (excluding borders and padding)
     SEEK_SECONDS = 10
+
+
+def detect_terminal_width() -> int:
+    """Detect terminal width, preferring tmux pane width when available."""
+    # Check if we're in tmux
+    if os.environ.get("TMUX_PANE"):
+        try:
+            result = subprocess.run(
+                ["tmux", "display-message", "-p", "#{pane_width}"],
+                capture_output=True, text=True, timeout=1
+            )
+            if result.returncode == 0:
+                width = int(result.stdout.strip())
+                if width > 0:
+                    return width
+        except (ValueError, subprocess.TimeoutExpired, FileNotFoundError):
+            pass
+    
+    # Fallback to shutil
+    return shutil.get_terminal_size().columns
+
+
+def detect_and_apply_terminal_width():
+    """Detect terminal width and clamp Config.UI_WIDTH to max 72."""
+    terminal_width = detect_terminal_width()
+    Config.UI_WIDTH = min(72, terminal_width)
+    Config.INNER_W = Config.UI_WIDTH - 4
 
 
 _playerctl_pool = ThreadPoolExecutor(max_workers=2, thread_name_prefix="pctl")
@@ -418,10 +446,16 @@ def switch_player() -> Optional[subprocess.Popen]:
     s.available_players = get_available_players()
     if not s.available_players:
         reset_state()
+        s.current_player = ""
+        s.current_player_idx = -1
         s.meta_proc = None
         return None
 
-    s.current_player_idx = (s.current_player_idx + 1) % len(s.available_players)
+    # Handle case where previous player is no longer available
+    if s.current_player not in s.available_players:
+        s.current_player_idx = 0
+    else:
+        s.current_player_idx = (s.current_player_idx + 1) % len(s.available_players)
     s.current_player = s.available_players[s.current_player_idx]
 
     # Reset state so stale metadata from previous player doesn't linger
@@ -647,19 +681,19 @@ def _format_player_name(player: str) -> str:
 def header_row() -> str:
     """Header row with status, player name, and switch."""
     global s
-    status_w = 20  # 2 icon + space + max status "No MPRIS player" (18 chars)
-    switch_w = 9  # 2 icon + 1 space + 6 "switch"
+    status_w = 20  # 1 icon + space + max status "No MPRIS player" (18 chars)
+    switch_w = 9  # 1 icon + space + 6 "switch" + 1 padding
     player_w = Config.INNER_W - status_w - switch_w - 2  # 2 for the gaps between slots
 
     status_icon = icon(_status_icon(s.state.status))
     status_text = colorize(
-        f"{status_icon:<2} {s.state.status.lower()}", status_color(s.state.status)
+        f"{status_icon} {s.state.status.lower()}", status_color(s.state.status)
     )
 
     player_name = f" {truncate(_format_player_name(s.state.player), player_w - 2)} "
 
     if len(s.available_players) > 1:
-        switch_text = f"{colorize(icon('tab'), Theme.KEY_HINT):^2} switch"
+        switch_text = f"{colorize(icon('tab'), Theme.KEY_HINT)} switch"
     else:
         switch_text = ""
 
@@ -914,10 +948,19 @@ def row(*slots) -> str:
 
 
 def visible_width(text: str) -> int:
-    """Calculate display width of text, accounting for wide chars (CJK, emoji)."""
+    """Calculate display width of text, accounting for wide chars (CJK, emoji).
+    
+    Variation selectors (U+FE00-U+FE0F) are treated as zero width since they
+    don't take up display space.
+    """
     plain = ANSI_PATTERN.sub("", text)
     width = 0
+    prev_was_combining = False
     for char in plain:
+        cp = ord(char)
+        # Variation selectors (U+FE00-U+FE0F) have zero width
+        if 0xFE00 <= cp <= 0xFE0F:
+            continue
         w = unicodedata.east_asian_width(char)
         width += 2 if w in ("F", "W") else 1  # Full-width or Wide = 2 columns
     return width
@@ -1199,6 +1242,7 @@ def main():
 
     check_playerctl()  # Exit early if playerctl not available
     setup_signals()
+    detect_and_apply_terminal_width()  # Clamp UI_WIDTH to terminal width (max 72)
 
     # Hide cursor
     sys.stdout.write("\033[?25l")
