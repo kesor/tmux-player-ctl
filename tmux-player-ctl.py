@@ -1161,31 +1161,6 @@ def progress_bar(current: float, total: float, total_width: int) -> str:
     )
 
 
-def _color_rgb(color_seq: str) -> str:
-    """Parse color value. Returns RGB triplet or default gray.
-    
-    Handles:
-    - ANSI sequences: extracts RGB from \033[38;2;R;G;Bm
-    - RGB triplets: returns as-is if contains two semicolons
-    - Defaults to "128;128;128" for invalid input
-    """
-    if not color_seq:
-        return "128;128;128"
-    
-    # If it's an ANSI sequence, extract RGB
-    if color_seq.startswith("\033[38;2;"):
-        parts = color_seq[7:-1].split(";")  # strip \033[38;2; and m
-        if len(parts) >= 3:
-            return f"{parts[0]};{parts[1]};{parts[2]}"
-        return "128;128;128"
-    
-    # If it's already an RGB triplet (contains two semicolons)
-    if color_seq.count(";") >= 2:
-        return color_seq
-    
-    return "128;128;128"
-
-
 def volume_bar(volume: int, width: int) -> str:
     """Build VU-meter style volume bar with optimized ANSI.
     

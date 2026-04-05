@@ -1,5 +1,4 @@
 """Tests for code review fixes:
-- Bug #3: _color_rgb() crashes on non-24-bit env vars
 - Bug #7: Missing minimum width clamping
 - Bug #11: Zero-length streams (live radio) display
 """
@@ -12,56 +11,6 @@ import importlib.util
 spec = importlib.util.spec_from_file_location("tpc", "../tmux-player-ctl.py")
 tpc = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(tpc)
-
-
-class TestColorRgbNon24Bit(unittest.TestCase):
-    """Bug #3: _color_rgb() crashes on non-24-bit env vars.
-    
-    The function assumes strict \033[38;2;R;G;Bm formatting. If a user
-    configures a 256-color palette, standard ANSI, or leaves the env var
-    empty, it raises IndexError.
-    """
-
-    def test_empty_string_does_not_crash(self):
-        """_color_rgb('') should not raise IndexError."""
-        result = tpc._color_rgb("")
-        # Should return a default gray RGB value
-        self.assertIsInstance(result, str)
-        self.assertIn(";", result)
-
-    def test_short_string_does_not_crash(self):
-        """_color_rgb('short') should not raise IndexError."""
-        result = tpc._color_rgb("short")
-        self.assertIsInstance(result, str)
-        self.assertIn(";", result)
-
-    def test_standard_ansi_does_not_crash(self):
-        """_color_rgb('\\033[31m') (red) should not crash."""
-        result = tpc._color_rgb("\033[31m")
-        self.assertIsInstance(result, str)
-        self.assertIn(";", result)
-
-    def test_256_color_does_not_crash(self):
-        """_color_rgb('\\033[38;5;196m') (256-color red) should not crash."""
-        result = tpc._color_rgb("\033[38;5;196m")
-        self.assertIsInstance(result, str)
-        self.assertIn(";", result)
-
-    def test_truncated_24bit_does_not_crash(self):
-        """_color_rgb('\\033[38;2;R;Gm') missing B should not crash."""
-        result = tpc._color_rgb("\033[38;2;255;0m")
-        self.assertIsInstance(result, str)
-        self.assertIn(";", result)
-
-    def test_valid_24bit_still_works(self):
-        """_color_rgb with valid 24-bit format still works."""
-        result = tpc._color_rgb("\033[38;2;255;128;0m")
-        self.assertEqual(result, "255;128;0")
-
-    def test_valid_24bit_green(self):
-        """_color_rgb with valid green still works."""
-        result = tpc._color_rgb("\033[38;2;166;227;161m")
-        self.assertEqual(result, "166;227;161")
 
 
 class TestMinWidthClamping(unittest.TestCase):
