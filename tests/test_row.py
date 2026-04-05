@@ -539,16 +539,18 @@ class TestMetadataParse(unittest.TestCase):
             result = tpc.parse_metadata(raw)
             self.assertEqual(result["volume"], expected, f"{vol_float} -> {expected}")
 
-    def test_metadata_fields_has_39_elements(self):
-        """METADATA_FIELDS should have exactly 39 elements."""
-        self.assertEqual(len(tpc.METADATA_FIELDS), 39)
+    def test_metadata_fields_has_40_elements(self):
+        """METADATA_FIELDS should have exactly 40 elements."""
+        self.assertEqual(len(tpc.METADATA_FIELDS), 40)
 
     def test_metadata_format_has_prefixes(self):
         """METADATA_FORMAT uses \n@N@ field prefixes for framing."""
         self.assertTrue(tpc.METADATA_FORMAT.startswith("\n"))
         self.assertIn("\n@0@{{playerName}}", tpc.METADATA_FORMAT)
         self.assertIn("\n@1@{{status}}", tpc.METADATA_FORMAT)
-        self.assertIn("\n@38@{{mpris:trackid}}", tpc.METADATA_FORMAT)
+        self.assertIn("\n@6@{{xesam:trackNumber}}", tpc.METADATA_FORMAT)
+        self.assertIn("\n@7@{{xesam:trackCount}}", tpc.METADATA_FORMAT)
+        self.assertIn("\n@39@{{mpris:trackid}}", tpc.METADATA_FORMAT)
 
     def test_metadata_parse_prefixed_format(self):
         """parse_metadata should handle @N@ prefixed format correctly."""
@@ -866,6 +868,261 @@ class TestThemeResetWithBackground(unittest.TestCase):
             self.assertEqual(tpc3.Theme.RESET, "\033[0m\033[48;2;30;30;50m")
         finally:
             del os.environ["TPCTL_BG"]
+
+
+class TestTrackRow(unittest.TestCase):
+    """Test track_row() - track name with optional track number display."""
+
+    def setUp(self):
+        # Save original state
+        self._orig_players = tpc.s.available_players
+        self._orig_state = tpc.s.state
+        self._orig_ui_width = tpc.Config.UI_WIDTH
+        # Create fresh state
+        tpc.s.state = tpc.PlayerState()
+        tpc.s.state.player = "spotify"
+        tpc.s.state.status = "Playing"
+        tpc.s.state.position = 60.0
+        tpc.s.state.length = 180.0
+        tpc.s.state.volume = 75
+        tpc.s.available_players = ["spotify"]
+
+    def tearDown(self):
+        tpc.s.state = self._orig_state
+        tpc.s.available_players = self._orig_players
+        tpc.Config.UI_WIDTH = self._orig_ui_width
+
+    def test_calc_track_num_width_single_digit(self):
+        """_calc_track_num_width should return correct width for single digit."""
+        result = tpc._calc_track_num_width(5)
+        self.assertEqual(result, 5)  # "5 / 5" = 5 chars
+
+    def test_calc_track_num_width_double_digit(self):
+        """_calc_track_num_width should return correct width for double digits."""
+        result = tpc._calc_track_num_width(12)
+        self.assertEqual(result, 7)  # "12 / 12" = 7 chars
+
+    def test_calc_track_num_width_large_count(self):
+        """_calc_track_num_width should handle large track counts (1000+)."""
+        result = tpc._calc_track_num_width(1000)
+        self.assertEqual(result, 11)  # "1000 / 1000" = 11 chars
+
+    def test_calc_track_num_width_zero(self):
+        """_calc_track_num_width should return 0 for zero."""
+        result = tpc._calc_track_num_width(0)
+        self.assertEqual(result, 0)
+
+    def test_track_row_has_label(self):
+        """Track row should always have the 'Track:' label."""
+        tpc.s.state.title = "Test Song"
+        tpc.s.state.trackNumber = ""
+        result = tpc.track_row()
+        self.assertIn("Track:", result)
+
+    def test_track_row_has_title(self):
+        """Track row should display the track title."""
+        tpc.s.state.title = "My Awesome Song"
+        tpc.s.state.trackNumber = ""
+        result = tpc.track_row()
+        self.assertIn("My Awesome Song", result)
+
+    def test_track_row_shows_track_number_when_present(self):
+        """Track row should display track number when available."""
+        tpc.s.state.title = "Test Song"
+        tpc.s.state.trackNumber = "5"
+        tpc.s.state.trackCount = 12
+        result = tpc.track_row()
+        # Should show track number in "X / Y" format
+        self.assertIn("5", result)
+        # Should show total tracks if available
+        self.assertIn("12", result)
+
+    def test_track_row_hides_track_number_when_absent(self):
+        """Track row should not show track number when not available."""
+        tpc.s.state.title = "Test Song"
+        tpc.s.state.trackNumber = ""
+        tpc.s.state.trackCount = 0
+        result = tpc.track_row()
+        # Should still have the title
+        self.assertIn("Test Song", result)
+        # Should NOT have " / " pattern (which indicates track count display)
+        # The track number area should be empty or just spaces
+        visible = strip_visible(result)
+        # The " / " separator should not appear when track number is absent
+        self.assertNotIn(" / ", visible)
+
+    def test_track_row_hides_track_number_when_count_missing(self):
+        """Track row should NOT show track number when trackCount is unavailable."""
+        tpc.s.state.title = "Test Song"
+        tpc.s.state.trackNumber = "3"
+        tpc.s.state.trackCount = 0
+        result = tpc.track_row()
+        visible = strip_visible(result)
+        # Should NOT show the track number (no / pattern)
+        self.assertNotIn(" / ", visible)
+        # Title should still be shown
+        self.assertIn("Test Song", visible)
+
+    def test_track_row_truncates_long_title_with_track_number(self):
+        """Long track titles should be truncated when track number is shown."""
+        tpc.s.state.title = "This Is A Very Long Song Title That Should Be Truncated"
+        tpc.s.state.trackNumber = "7"
+        tpc.s.state.trackCount = 10
+        result = tpc.track_row()
+        # Title should be truncated (ends with ellipsis)
+        visible = strip_visible(result)
+        # The full long title should NOT be in the output
+        self.assertNotIn("This Is A Very Long Song Title That Should Be Truncated", visible)
+
+    def test_track_row_handles_numeric_track_number(self):
+        """Track row should handle numeric track numbers correctly."""
+        tpc.s.state.title = "Track 1"
+        tpc.s.state.trackNumber = 1
+        tpc.s.state.trackCount = 10
+        result = tpc.track_row()
+        self.assertIn("1", result)
+        self.assertIn("10", result)
+
+    def test_track_row_handles_string_track_number(self):
+        """Track row should handle string track numbers correctly."""
+        tpc.s.state.title = "Track 2"
+        tpc.s.state.trackNumber = "2"
+        tpc.s.state.trackCount = "15"
+        result = tpc.track_row()
+        self.assertIn("2", result)
+        self.assertIn("15", result)
+
+    def test_track_row_empty_title_with_track_number(self):
+        """Track row should show track number even when title is empty."""
+        tpc.s.state.title = ""
+        tpc.s.state.trackNumber = "9"
+        tpc.s.state.trackCount = 12
+        result = tpc.track_row()
+        # Should still have label and track number
+        self.assertIn("Track:", result)
+        self.assertIn("9", result)
+
+    def test_track_row_preserves_borders(self):
+        """Track row should maintain proper border formatting."""
+        tpc.s.state.title = "Test Song"
+        tpc.s.state.trackNumber = "1"
+        tpc.s.state.trackCount = 10
+        result = tpc.track_row()
+        visible = strip_visible(result)
+        self.assertTrue(visible.startswith("│ "))
+        self.assertTrue(visible.endswith(" │"))
+
+    def test_track_row_track_count_format(self):
+        """Track row should display in 'X / Y' format when both values present."""
+        tpc.s.state.title = "Song"
+        tpc.s.state.trackNumber = "4"
+        tpc.s.state.trackCount = 8
+        result = tpc.track_row()
+        visible = strip_visible(result)
+        # Should have "4 / 8" or similar format
+        self.assertIn(" / ", visible)
+        self.assertIn("4", visible)
+        self.assertIn("8", visible)
+
+    def test_track_row_handles_large_track_count(self):
+        """Track row should handle albums with 100+ tracks."""
+        tpc.s.state.title = "Epic Song"
+        tpc.s.state.trackNumber = "99"
+        tpc.s.state.trackCount = 150
+        result = tpc.track_row()
+        visible = strip_visible(result)
+        # Should show "99 / 150"
+        self.assertIn("99", visible)
+        self.assertIn("150", visible)
+        self.assertIn(" / ", visible)
+
+    def test_track_row_handles_string_track_count(self):
+        """Track row should handle string track counts (e.g., from metadata)."""
+        tpc.s.state.title = "Song"
+        tpc.s.state.trackNumber = "7"
+        tpc.s.state.trackCount = "12"  # String instead of int
+        result = tpc.track_row()
+        visible = strip_visible(result)
+        # Should show "7 / 12"
+        self.assertIn("7", visible)
+        self.assertIn("12", visible)
+        self.assertIn(" / ", visible)
+
+    def test_track_row_hides_track_number_when_count_invalid(self):
+        """Track row should NOT show track number when trackCount is invalid."""
+        tpc.s.state.title = "Song"
+        tpc.s.state.trackNumber = "3"
+        tpc.s.state.trackCount = "invalid"  # Invalid string
+        # Should not raise exception, just show title without track number
+        result = tpc.track_row()
+        visible = strip_visible(result)
+        # Should NOT show the track number (no / pattern)
+        self.assertNotIn(" / ", visible)
+        # Title should still be shown
+        self.assertIn("Song", visible)
+
+
+class TestTrackRowRenderUI(unittest.TestCase):
+    """Test track row rendering within full UI output."""
+
+    def setUp(self):
+        self._orig_players = tpc.s.available_players
+        self._orig_state = tpc.s.state
+        tpc.s.state = tpc.PlayerState()
+        tpc.s.state.player = "spotify"
+        tpc.s.state.status = "Playing"
+        tpc.s.state.position = 60.0
+        tpc.s.state.length = 180.0
+        tpc.s.state.volume = 75
+        tpc.s.available_players = ["spotify"]
+
+    def tearDown(self):
+        tpc.s.state = self._orig_state
+        tpc.s.available_players = self._orig_players
+
+    def test_render_ui_with_track_number(self):
+        """UI should show track number when trackNumber is set."""
+        tpc.s.state.title = "Famous Song"
+        tpc.s.state.artist = "Great Artist"
+        tpc.s.state.album = "Best Album"
+        tpc.s.state.trackNumber = "3"
+        tpc.s.state.trackCount = 12
+        import io
+        import sys
+
+        old_stdout = sys.stdout
+        sys.stdout = io.StringIO()
+        try:
+            tpc.render_ui()
+            output = sys.stdout.getvalue()
+        finally:
+            sys.stdout = old_stdout
+        # Should show the track number
+        self.assertIn("3", output)
+        self.assertIn("12", output)
+
+    def test_render_ui_without_track_number(self):
+        """UI should not show track number when trackNumber is not set."""
+        tpc.s.state.title = "Famous Song"
+        tpc.s.state.artist = "Great Artist"
+        tpc.s.state.album = "Best Album"
+        tpc.s.state.trackNumber = ""
+        tpc.s.state.trackCount = 0
+        import io
+        import sys
+
+        old_stdout = sys.stdout
+        sys.stdout = io.StringIO()
+        try:
+            tpc.render_ui()
+            output = sys.stdout.getvalue()
+        finally:
+            sys.stdout = old_stdout
+        # Should still show track title
+        self.assertIn("Famous Song", output)
+        # The " / " pattern for track count should not be present
+        visible = strip_visible(output)
+        self.assertNotIn(" / ", visible)
 
 
 if __name__ == "__main__":

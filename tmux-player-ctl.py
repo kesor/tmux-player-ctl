@@ -109,6 +109,8 @@ class PlayerState:
     _end_time_w: Optional[int] = (
         None  # Width of end time (set by progress_row for volume_row)
     )
+    trackNumber: str = ""  # Current track number
+    trackCount: int = 0  # Total tracks in album
 
 
 class PlayerTracker:
@@ -137,6 +139,7 @@ METADATA_FIELDS = [
     "album",
     "albumArtist",
     "trackNumber",
+    "trackCount",
     "discNumber",
     "genre",
     "explicit",
@@ -179,7 +182,8 @@ _METADATA_KEYS = [
     "{{artist}}",
     "{{album}}",
     "{{albumArtist}}",
-    "{{trackNumber}}",
+    "{{xesam:trackNumber}}",
+    "{{xesam:trackCount}}",
     "{{discNumber}}",
     "{{genre}}",
     "{{xesam:explicit}}",
@@ -493,6 +497,7 @@ def parse_metadata(raw: str) -> dict:
             # Track details
             "albumArtist": get("albumArtist"),
             "trackNumber": get("trackNumber"),
+            "trackCount": int(get("trackCount")) if get("trackCount") else 0,
             "discNumber": get("discNumber"),
             "genre": get("genre"),
             "explicit": get("explicit", "false"),
@@ -671,14 +676,80 @@ def _info_row(label: str, value: str):
     )
 
 
+def _calc_track_num_width(track_count: int) -> int:
+    """Calculate the width needed for track number display.
+
+    Format: "X / Y" where X is track number and Y is total count.
+    Handles track counts up to 9999 tracks (4 digits).
+    """
+    if track_count <= 0:
+        return 0
+    # Width of the count portion: max of track number and track count digits
+    # plus 3 for " / " separator
+    count_digits = max(len(str(track_count)), 1)
+    return count_digits + 3 + count_digits  # "X / Y" format
+
+
+def _track_row_slots(title: str, track_number: str, track_count: int):
+    """Build track row slots: label (7) + title (flex) + track num (dynamic).
+
+    Track number is only displayed when BOTH track_number and track_count
+    are available (format: "X / Y"). Otherwise, only the title is shown.
+    """
+    inner = Config.UI_WIDTH - 4
+    lw, gap = 7, 1
+
+    # Normalize track_count to int for comparison
+    try:
+        track_count_int = int(track_count) if track_count else 0
+    except (ValueError, TypeError):
+        track_count_int = 0
+
+    # Only show track number when both track number AND count are available
+    show_track_num = bool(track_number) and track_count_int > 0
+
+    if show_track_num:
+        tn_text = f"{track_number} / {track_count_int}"
+        tn_slot_w = len(tn_text)
+        # Title width: inner - label - gap - title - gap - track_num
+        tw = inner - lw - gap - gap - tn_slot_w
+    else:
+        tn_text = ""
+        tn_slot_w = 0
+        # Title width: inner - label - gap - title (no trailing gap)
+        tw = inner - lw - gap
+
+    # Truncate title if needed
+    title_text = truncate(title, tw) if tw > 0 else ""
+
+    label_colored = colorize(f"{'Track:':>{lw}}", Theme.DIM)
+
+    slots = [
+        (label_colored, lw, ">"),
+        (title_text, tw, "<"),
+    ]
+    if show_track_num:
+        tn_colored = colorize(f"{tn_text:>{tn_slot_w}}", Theme.DIM)
+        slots.append((tn_colored, tn_slot_w, ">"))
+
+    return slots
+
+
 def album_row():
     global s
     return _info_row("Album:", s.state.album)
 
 
 def track_row():
+    """Track row: label + title + track number info."""
     global s
-    return _info_row("Track:", s.state.title)
+    # Build track row with optional track number display
+    slots = _track_row_slots(
+        s.state.title,
+        s.state.trackNumber,
+        s.state.trackCount,
+    )
+    return row(*slots)
 
 
 def artist_row():
