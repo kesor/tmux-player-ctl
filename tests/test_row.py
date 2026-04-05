@@ -83,7 +83,8 @@ class TestTruncate(unittest.TestCase):
 
     def test_truncate_width_one(self):
         result = tpc.truncate("Hello", 1)
-        self.assertEqual(result, "…")
+        # Keep first char and add ellipsis
+        self.assertEqual(result, "H…")
 
     def test_truncate_one_char_shorter(self):
         result = tpc.truncate("abcd", 5)

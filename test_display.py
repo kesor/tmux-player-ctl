@@ -15,8 +15,8 @@ print("1234567890" * 10)
 tpc.s.state.position = 45
 tpc.s.state.length = 140
 tpc.s.state.volume = 89
-tpc.s.state.player = "spotifyd"
-tpc.s.state.status = "Playing"
+tpc.s.state.player = "spotifyd旅ロ京青利セムレ弱改フヨス波府かばぼ意送でぼ調掲察たス日西重ケアナ住橋ユムミク順待ふかんぼ人奨貯鏡すびそ。"
+tpc.s.state.status = "Paused"
 tpc.s.state.shuffle = "true"
 # tpc.s.state.loop = "false"
 tpc.s.state.title = "Mission Select"
