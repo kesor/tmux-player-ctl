@@ -56,26 +56,30 @@ bind-key -n M-p display-popup -B -w72 -h12 -E "tmux-player-ctl"
 
 ## Theming
 
-All colors use ANSI 24-bit RGB sequences. Override via environment variables:
+Colors are specified as RGB triplets (r;g;b format). Override via environment variables:
+
+```bash
+# Example: Override playing color and background
+TPCTL_PLAYING="255;100;100" TPCTL_BG="20;20;30" tmux-player-ctl.py
+```
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `TPCTL_PLAYING` | green | Playing status |
-| `TPCTL_PAUSED` | yellow | Paused status |
-| `TPCTL_STOPPED` | gray | Stopped / no player |
-| `TPCTL_KEY_HINT` | blue | Key hints in toolbar |
-| `TPCTL_BORDER` | gray | Box borders |
-| `TPCTL_DIM` | gray | Label text |
-| `TPCTL_ACCENT` | green | Accent color |
-| `TPCTL_ACCENT_ALT` | yellow | Alternate accent |
-| `TPCTL_PROGRESS_FILL` | blue | Progress bar filled |
-| `TPCTL_PROGRESS_EMPTY` | gray | Progress bar empty |
-| `TPCTL_VOL_MUTED` | red | Volume muted |
-| `TPCTL_VOL_LOW` | yellow | Volume low |
-| `TPCTL_VOL_MED` | green | Volume medium |
-| `TPCTL_VOL_HIGH` | green | Volume high |
-| `TPCTL_VOL_EMPTY` | gray | Volume bar empty |
-| `TPCTL_BG` | (none) | Background RGB |
+| `TPCTL_PLAYING` | 166;227;161 (green) | Playing status |
+| `TPCTL_PAUSED` | 249;226;175 (yellow) | Paused status |
+| `TPCTL_STOPPED` | 108;112;134 (gray) | Stopped / no player |
+| `TPCTL_RECORDING` | 243;139;168 (red) | Recording status |
+| `TPCTL_KEY_HINT` | 137;180;250 (blue) | Key hints in toolbar |
+| `TPCTL_BORDER` | 108;112;134 (gray) | Box borders |
+| `TPCTL_DIM` | 108;112;134 (gray) | Label text |
+| `TPCTL_PROGRESS_FILL` | 137;180;250 (blue) | Progress bar filled |
+| `TPCTL_PROGRESS_EMPTY` | 108;112;134 (gray) | Progress bar empty |
+| `TPCTL_VOL_MUTED` | 243;139;168 (red) | Volume muted |
+| `TPCTL_VOL_LOW` | 166;227;161 (green) | Volume low (0-50%) |
+| `TPCTL_VOL_MED` | 249;226;175 (yellow) | Volume medium (50-80%) |
+| `TPCTL_VOL_HIGH` | 243;139;168 (red) | Volume high (80-100%) |
+| `TPCTL_VOL_EMPTY` | 17;17;27 (dark) | Volume bar empty |
+| `TPCTL_BG` | (none) | Background RGB (e.g., "0;0;0") |
 
 ## Architecture
 
