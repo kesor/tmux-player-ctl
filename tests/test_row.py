@@ -231,11 +231,8 @@ class TestRow(unittest.TestCase):
     def test_volume_bar_empty_section_uses_vol_empty(self):
         """Empty section uses VOL_EMPTY theme color for both FG and BG."""
         result = tpc.volume_bar(70, 10)  # 70% filled, 30% empty
-        import re
-        # Extract VOL_EMPTY RGB value from theme
-        vol_empty_rgb = tpc._color_rgb(tpc.Theme.VOL_EMPTY)
         # The empty section should have BG set to VOL_EMPTY
-        self.assertIn(f"\033[48;2;{vol_empty_rgb}m", result)
+        self.assertIn(f"\033[48;2;{tpc.Theme.VOL_EMPTY}m", result)
 
     def test_volume_bar_resets_color(self):
         """Volume bar ends with color reset."""
@@ -321,8 +318,9 @@ class TestColorize(unittest.TestCase):
     """Test colorize() - adds ANSI color to content."""
 
     def test_colorize_wraps_content_with_color(self):
-        result = tpc.colorize("hello", "\x1b[92m")
-        self.assertEqual(result, "\x1b[92mhello\x1b[0m")
+        """colorize wraps content with FG ANSI from RGB triplet."""
+        result = tpc.colorize("hello", "0;196;0")  # RGB for green
+        self.assertEqual(result, "\x1b[38;2;0;196;0mhello\x1b[0m")
 
 
 class TestIcon(unittest.TestCase):
@@ -877,7 +875,7 @@ class TestThemeResetWithBackground(unittest.TestCase):
             tpc2 = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(tpc2)
             # Should be just \033[0m
-            self.assertEqual(tpc2.Theme.RESET, "\033[0m")
+            self.assertEqual(tpc2.Theme.reset(), "\033[0m")
         finally:
             if old_bg:
                 os.environ["TPCTL_BG"] = old_bg
@@ -896,7 +894,7 @@ class TestThemeResetWithBackground(unittest.TestCase):
             tpc3 = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(tpc3)
             # Should be \033[0m followed by background
-            self.assertEqual(tpc3.Theme.RESET, "\033[0m\033[48;2;30;30;50m")
+            self.assertEqual(tpc3.Theme.reset(), "\033[0m\033[48;2;30;30;50m")
         finally:
             del os.environ["TPCTL_BG"]
 

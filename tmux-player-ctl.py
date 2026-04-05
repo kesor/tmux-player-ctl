@@ -122,9 +122,41 @@ VOL_ICONS = {
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-def colorize(text: str, color: str) -> str:
-    """Add ANSI color to text, then reset."""
-    return f"{color}{text}{Theme.RESET}"
+# ─────────────────────────────────────────────────────────────────────────────
+# ANSI Helpers
+# ─────────────────────────────────────────────────────────────────────────────
+
+class Ansi:
+    """Pre-built ANSI escape sequences for common operations."""
+    
+    @staticmethod
+    def fg(rgb: str) -> str:
+        """Foreground color from RGB triplet (e.g., "166;227;161")."""
+        return f"\033[38;2;{rgb}m"
+    
+    @staticmethod
+    def bg(rgb: str) -> str:
+        """Background color from RGB triplet (e.g., "166;227;161")."""
+        return f"\033[48;2;{rgb}m"
+    
+    @staticmethod
+    def fg_bg(fg_rgb: str, bg_rgb: str) -> str:
+        """Combined FG + BG color from RGB triplets."""
+        return f"\033[38;2;{fg_rgb}m\033[48;2;{bg_rgb}m"
+    
+    RESET_ALL = "\033[0m"
+    
+    @classmethod
+    def reset(cls, bg_rgb: str = None) -> str:
+        """Reset with optional background re-application."""
+        if bg_rgb:
+            return f"\033[0m\033[48;2;{bg_rgb}m"
+        return cls.RESET_ALL
+
+
+def colorize(text: str, rgb: str) -> str:
+    """Wrap text in foreground color using RGB triplet."""
+    return f"{Ansi.fg(rgb)}{text}{Ansi.RESET_ALL}"
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -611,42 +643,50 @@ def parse_metadata(raw: str) -> dict:
 
 
 class Theme:
-    # Catppuccin Mocha palette (24-bit RGB: \033[38;2;R;G;Bm)
+    """Catppuccin Mocha palette as RGB triplets (r;g;b format).
+    
+    ANSI sequences are built at point of use via Ansi.fg() / Ansi.bg()
+    to allow flexible FG/BG combinations.
+    """
 
-    # Background: 24-bit RGB like "0;0;0" for black
+    # Background as RGB triplet (e.g., "0;0;0" for black)
     BG = os.environ.get("TPCTL_BG", "")
 
     # Status colors
-    PLAYING = os.environ.get("TPCTL_PLAYING", "\033[38;2;166;227;161m")  # green
-    PAUSED = os.environ.get("TPCTL_PAUSED", "\033[38;2;249;226;175m")  # yellow
-    STOPPED = os.environ.get("TPCTL_STOPPED", "\033[38;2;108;112;134m")  # overlay0
-    RECORDING = os.environ.get("TPCTL_RECORDING", "\033[38;2;243;139;168m")  # red
+    PLAYING = os.environ.get("TPCTL_PLAYING", "166;227;161")  # green
+    PAUSED = os.environ.get("TPCTL_PAUSED", "249;226;175")  # yellow
+    STOPPED = os.environ.get("TPCTL_STOPPED", "108;112;134")  # overlay0
+    RECORDING = os.environ.get("TPCTL_RECORDING", "243;139;168")  # red
 
     # Key hints
-    KEY_HINT = os.environ.get("TPCTL_KEY_HINT", "\033[38;2;137;180;250m")  # blue
+    KEY_HINT = os.environ.get("TPCTL_KEY_HINT", "137;180;250")  # blue
 
     # Borders & labels
-    BORDER = os.environ.get("TPCTL_BORDER", "\033[38;2;108;112;134m")  # overlay0
-    DIM = os.environ.get("TPCTL_DIM", "\033[38;2;108;112;134m")  # overlay0
+    BORDER = os.environ.get("TPCTL_BORDER", "108;112;134")  # overlay0
+    DIM = os.environ.get("TPCTL_DIM", "108;112;134")  # overlay0
 
     # Progress bar
-    PROGRESS_FILL = os.environ.get(
-        "TPCTL_PROGRESS_FILL", "\033[38;2;137;180;250m"
-    )  # blue
-    PROGRESS_EMPTY = os.environ.get(
-        "TPCTL_PROGRESS_EMPTY", "\033[38;2;108;112;134m"
-    )  # overlay0
+    PROGRESS_FILL = os.environ.get("TPCTL_PROGRESS_FILL", "137;180;250")  # blue
+    PROGRESS_EMPTY = os.environ.get("TPCTL_PROGRESS_EMPTY", "108;112;134")  # overlay0
 
     # Volume bar (VU meter gradient: green → yellow → red)
-    # Low=green, Med=yellow, High=red, Empty=dimmed
-    VOL_MUTED = os.environ.get("TPCTL_VOL_MUTED", "\033[38;2;243;139;168m")  # red
-    VOL_LOW = os.environ.get("TPCTL_VOL_LOW", "\033[38;2;166;227;161m")  # green
-    VOL_MED = os.environ.get("TPCTL_VOL_MED", "\033[38;2;249;226;175m")  # yellow
-    VOL_HIGH = os.environ.get("TPCTL_VOL_HIGH", "\033[38;2;243;139;168m")  # red
-    VOL_EMPTY = os.environ.get("TPCTL_VOL_EMPTY", "\033[38;2;17;17;27m")  # dark base
+    VOL_MUTED = os.environ.get("TPCTL_VOL_MUTED", "243;139;168")  # red
+    VOL_LOW = os.environ.get("TPCTL_VOL_LOW", "166;227;161")  # green
+    VOL_MED = os.environ.get("TPCTL_VOL_MED", "249;226;175")  # yellow
+    VOL_HIGH = os.environ.get("TPCTL_VOL_HIGH", "243;139;168")  # red
+    VOL_EMPTY = os.environ.get("TPCTL_VOL_EMPTY", "17;17;27")  # dark base
 
-    # Reset includes background color so it's reapplied after each reset
-    RESET = f"\033[0m{'' if not BG else f'\033[48;2;{BG}m'}"
+    # Reset: clears formatting, optionally reapplies background
+    @classmethod
+    def reset(cls) -> str:
+        if cls.BG:
+            return f"\033[0m\033[48;2;{cls.BG}m"
+        return "\033[0m"
+
+    # Backwards compatibility: Theme.RESET as a string (lazy evaluated)
+    @property
+    def RESET(self) -> str:
+        return self.reset()
 
 
 def status_color(status: str) -> str:
@@ -667,17 +707,17 @@ def status_color(status: str) -> str:
 
 def border_top() -> str:
     """Top border: ┌ followed by ─ repeated, then ┐"""
-    return f"{Theme.BORDER}┌{'─' * (Config.UI_WIDTH - 2)}┐{Theme.RESET}"
+    return f"{Ansi.fg(Theme.BORDER)}┌{'─' * (Config.UI_WIDTH - 2)}┐{Ansi.RESET_ALL}"
 
 
 def border_mid() -> str:
     """Middle border: ├ followed by ─ repeated, then ┤"""
-    return f"{Theme.BORDER}├{'─' * (Config.UI_WIDTH - 2)}┤{Theme.RESET}"
+    return f"{Ansi.fg(Theme.BORDER)}├{'─' * (Config.UI_WIDTH - 2)}┤{Ansi.RESET_ALL}"
 
 
 def border_bot() -> str:
     """Bottom border: └ followed by ─ repeated, then ┘"""
-    return f"{Theme.BORDER}└{'─' * (Config.UI_WIDTH - 2)}┘{Theme.RESET}"
+    return f"{Ansi.fg(Theme.BORDER)}└{'─' * (Config.UI_WIDTH - 2)}┘{Ansi.RESET_ALL}"
 
 
 def _status_icon(status: str) -> str:
@@ -1026,7 +1066,7 @@ def row(*slots) -> str:
         parts.append(pad_visible(content, width, align))
     content_str = " ".join(parts)
 
-    return f"{Theme.BORDER}│{Theme.RESET} {content_str} {Theme.BORDER}│{Theme.RESET}"
+    return f"{Ansi.fg(Theme.BORDER)}│{Ansi.RESET_ALL} {content_str} {Ansi.fg(Theme.BORDER)}│{Ansi.RESET_ALL}"
 
 
 def visible_width(text: str) -> int:
@@ -1112,12 +1152,12 @@ def progress_bar(current: float, total: float, total_width: int) -> str:
     filled_w = min(int((clamped / total) * (total_width - 1)), total_width - 1)
     empty_w = total_width - filled_w - 1
     return (
-        Theme.PROGRESS_FILL
+        Ansi.fg(Theme.PROGRESS_FILL)
         + "━" * filled_w
         + "\u25cf"
-        + Theme.PROGRESS_EMPTY
+        + Ansi.fg(Theme.PROGRESS_EMPTY)
         + "━" * empty_w
-        + Theme.RESET
+        + Ansi.RESET_ALL
     )
 
 
@@ -1150,7 +1190,7 @@ def volume_bar(volume: int, width: int) -> str:
     """
     if volume == 0:
         # Muted: dimmed FG and BG - one sequence for whole bar
-        return f"\033[38;2;{_color_rgb(Theme.VOL_EMPTY)}m\033[48;2;{_color_rgb(Theme.VOL_EMPTY)}m{'░' * width}{Theme.RESET}"
+        return f"{Ansi.fg_bg(Theme.VOL_EMPTY, Theme.VOL_EMPTY)}{'░' * width}{Ansi.RESET_ALL}"
     
     filled = min(int(volume * width // 100), width)
     
@@ -1159,20 +1199,14 @@ def volume_bar(volume: int, width: int) -> str:
     yellow_zone_end = int(width * 0.80)  # exclusive
     
     result = []
-    prev_color = None
+    prev_ansi = None
     
-    # Pre-compute RGB values for transitions (dithered blocks need FG/BG mix)
-    green_rgb = _color_rgb(Theme.VOL_LOW)
-    yellow_rgb = _color_rgb(Theme.VOL_MED)
-    red_rgb = _color_rgb(Theme.VOL_HIGH)
-    empty_rgb = _color_rgb(Theme.VOL_EMPTY)
-    
-    def emit(char: str, ansi_seq: str) -> None:
-        """Emit character with ANSI color sequence if different from previous."""
-        nonlocal prev_color
-        if ansi_seq != prev_color:
-            result.append(ansi_seq)
-            prev_color = ansi_seq
+    def emit(char: str, ansi: str) -> None:
+        """Emit character with ANSI sequence if different from previous."""
+        nonlocal prev_ansi
+        if ansi != prev_ansi:
+            result.append(ansi)
+            prev_ansi = ansi
         result.append(char)
     
     for i in range(width):
@@ -1182,24 +1216,24 @@ def volume_bar(volume: int, width: int) -> str:
                 # Green zone
                 if filled > green_zone_end and i == green_zone_end - 1:
                     # At boundary, transitioning to yellow - dithered block
-                    emit("▒", f"\033[38;2;{yellow_rgb}m\033[48;2;{green_rgb}m")
+                    emit("▒", Ansi.fg_bg(Theme.VOL_MED, Theme.VOL_LOW))
                 else:
-                    emit("█", Theme.VOL_LOW)
+                    emit("█", Ansi.fg(Theme.VOL_LOW))
             elif i < yellow_zone_end:
                 # Yellow zone
                 if filled > yellow_zone_end and i == yellow_zone_end - 1:
                     # At boundary, transitioning to red - dithered block
-                    emit("▒", f"\033[38;2;{red_rgb}m\033[48;2;{yellow_rgb}m")
+                    emit("▒", Ansi.fg_bg(Theme.VOL_HIGH, Theme.VOL_MED))
                 else:
-                    emit("█", Theme.VOL_MED)
+                    emit("█", Ansi.fg(Theme.VOL_MED))
             else:
                 # Red zone
-                emit("█", Theme.VOL_HIGH)
+                emit("█", Ansi.fg(Theme.VOL_HIGH))
         else:
-            # Empty section - use VOL_EMPTY RGB for both FG and BG
-            emit("░", f"\033[38;2;{empty_rgb}m\033[48;2;{empty_rgb}m")
+            # Empty section - use VOL_EMPTY for both FG and BG
+            emit("░", Ansi.fg_bg(Theme.VOL_EMPTY, Theme.VOL_EMPTY))
     
-    return "".join(result) + Theme.RESET
+    return "".join(result) + Ansi.RESET_ALL
 
 
 def run_playerctl_async(*args) -> None:
