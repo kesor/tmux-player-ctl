@@ -692,7 +692,23 @@ def header_row() -> str:
         f"{status_icon} {s.state.status.lower()}", status_color(s.state.status)
     )
 
-    player_name = f" {truncate(_format_player_name(s.state.player), player_w - 2)} "
+    player_name = _format_player_name(s.state.player)
+    player_name_w = visible_width(player_name)
+    # Center player name in the full inner content width
+    inner_w = Config.INNER_W - 2
+    player_center = (inner_w - player_name_w) // 2
+    # How much padding before player name to achieve centering?
+    # Player slot starts at position status_w + 1 (after status + gap)
+    player_left_pad = player_center - status_w - 1
+    # Truncate player name if needed to fit the remaining slot space
+    max_name_len = player_w - max(0, player_left_pad) - 1  # trailing space
+    if max_name_len > 0 and player_name_w > max_name_len:
+        player_name = truncate(player_name, max_name_len)
+        player_name_w = visible_width(player_name)
+        # Recalculate centering
+        player_center = (inner_w - player_name_w) // 2
+        player_left_pad = player_center - status_w - 1
+    player_name_padded = " " * max(0, player_left_pad) + player_name + " "
 
     if len(s.available_players) > 1:
         switch_text = f"{colorize(icon('tab'), Theme.KEY_HINT)} switch"
@@ -701,7 +717,7 @@ def header_row() -> str:
 
     return row(
         (status_text, status_w, "<"),
-        (player_name, player_w, "^"),
+        (player_name_padded, player_w, "<"),
         (switch_text, switch_w, ">"),
     )
 
