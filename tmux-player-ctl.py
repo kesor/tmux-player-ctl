@@ -413,12 +413,12 @@ def switch_player() -> Optional[subprocess.Popen]:
         return None
 
     result = run_playerctl("--format", METADATA_FORMAT, "metadata")
+    # Always set player name - update_state_from_metadata skips 'player' field
+    s.state.player = s.current_player
     if result:
         data = parse_metadata(result)
         update_state_from_metadata(data)
     else:
-        # Player exists but has no metadata - still show the player name
-        s.state.player = s.current_player
         s.state.status = "Stopped"
         s.state.dirty = True
 
