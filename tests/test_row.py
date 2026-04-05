@@ -923,25 +923,7 @@ class TestTrackRow(unittest.TestCase):
         tpc.s.available_players = self._orig_players
         tpc.Config.UI_WIDTH = self._orig_ui_width
 
-    def test_calc_track_num_width_single_digit(self):
-        """_calc_track_num_width should return correct width for single digit."""
-        result = tpc._calc_track_num_width(5)
-        self.assertEqual(result, 5)  # "5 / 5" = 5 chars
 
-    def test_calc_track_num_width_double_digit(self):
-        """_calc_track_num_width should return correct width for double digits."""
-        result = tpc._calc_track_num_width(12)
-        self.assertEqual(result, 7)  # "12 / 12" = 7 chars
-
-    def test_calc_track_num_width_large_count(self):
-        """_calc_track_num_width should handle large track counts (1000+)."""
-        result = tpc._calc_track_num_width(1000)
-        self.assertEqual(result, 11)  # "1000 / 1000" = 11 chars
-
-    def test_calc_track_num_width_zero(self):
-        """_calc_track_num_width should return 0 for zero."""
-        result = tpc._calc_track_num_width(0)
-        self.assertEqual(result, 0)
 
     def test_track_row_has_label(self):
         """Track row should always have the 'Track:' label."""

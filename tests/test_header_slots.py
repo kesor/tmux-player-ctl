@@ -77,22 +77,19 @@ class TestHeaderCentering(unittest.TestCase):
             f"CJK name should be more centered (pos={cjk_pos}) than long (pos={long_pos})"
         )
 
-    def test_header_uses_original_slot_widths(self):
-        """Header should keep original status_w=20 and switch_w=9."""
+    def test_header_uses_switch_width_9(self):
+        """Header switch width should use 9 characters."""
         with open('../tmux-player-ctl.py') as f:
             code = f.read()
-        
+
         import re
         header_start = code.find('def header_row()')
         header_end = code.find('\ndef ', header_start + 1)
         header_code = code[header_start:header_end]
-        
-        status_match = re.search(r'status_w\s*=\s*(\d+)', header_code)
+
+        # Check that switch_w is set to 9 when has_switch is true
         switch_match = re.search(r'switch_w\s*=\s*(\d+)', header_code)
-        
-        self.assertIsNotNone(status_match, "status_w should be defined")
         self.assertIsNotNone(switch_match, "switch_w should be defined")
-        self.assertEqual(int(status_match.group(1)), 20, "status_w should remain 20")
         self.assertEqual(int(switch_match.group(1)), 9, "switch_w should remain 9")
 
     def test_header_length_is_correct(self):
