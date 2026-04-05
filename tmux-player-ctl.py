@@ -744,10 +744,11 @@ def _artist_row_slots(artist: str, shuffle: str, loop: str):
     sl_parts = []
     sl_width = 0
 
-    # Shuffle: icon + "shuf" when ON, "shuf" when OFF (s highlighted, rest dimmed)
+    # Shuffle: icon + "shuf" when ON, "shuf" when OFF
     if shuffle == "true":
         shuffle_icon = icon("shuffle")
-        shuffle_text = f"{colorize('s', Theme.KEY_HINT)}{colorize('huf', Theme.DIM)}"
+        # ON: "s" highlighted, "huf" bright
+        shuffle_text = f"{colorize('s', Theme.KEY_HINT)}huf"
         sl_parts.append(f"{shuffle_icon} {shuffle_text}")
         sl_width += visible_width(shuffle_icon) + 1 + 5  # icon + space + "shuf"
     else:
@@ -756,10 +757,11 @@ def _artist_row_slots(artist: str, shuffle: str, loop: str):
         sl_parts.append(shuffle_text)
         sl_width += 5  # "shuf"
 
-    # Loop: icon + "loop" when ON, "loop" when OFF (l highlighted, rest dimmed)
+    # Loop: icon + "loop" when ON, "loop" when OFF
     if loop in ("Track", "Playlist"):
         loop_icon = icon("repeat-one") if loop == "Track" else icon("repeat")
-        loop_text = f"{colorize('l', Theme.KEY_HINT)}{colorize('oop', Theme.DIM)}"
+        # ON: "l" highlighted, "oop" bright
+        loop_text = f"{colorize('l', Theme.KEY_HINT)}oop"
         sl_parts.append(f"{loop_icon} {loop_text}")
         sl_width += visible_width(loop_icon) + 1 + 4  # icon + space + "loop"
     elif loop == "None":
