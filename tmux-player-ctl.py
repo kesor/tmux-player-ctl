@@ -1162,21 +1162,28 @@ def progress_bar(current: float, total: float, total_width: int) -> str:
 
 
 def _color_rgb(color_seq: str) -> str:
-    """Extract RGB values from a color escape sequence like '\033[38;2;R;G;Bm'.
-
-    Handles non-24-bit formats gracefully by returning a default gray.
+    """Parse color value. Returns RGB triplet or default gray.
+    
+    Handles:
+    - ANSI sequences: extracts RGB from \033[38;2;R;G;Bm
+    - RGB triplets: returns as-is if contains two semicolons
+    - Defaults to "128;128;128" for invalid input
     """
-    # Format: \033[38;2;R;G;Bm
-    # After stripping \033[ and m, split gives: ['38', '2', 'R', 'G', 'B']
-    # Handle empty or too-short strings
-    if not color_seq or len(color_seq) < 12:
-        return "128;128;128"  # default gray
-    parts = color_seq[2:-1].split(";")  # strip \033[ and m, split by ;
-    # Validate: parts should have 5 elements ['38', '2', 'R', 'G', 'B']
-    # parts[1] should be "2" for 24-bit RGB format
-    if len(parts) >= 5 and parts[1] == "2":
-        return f"{parts[2]};{parts[3]};{parts[4]}"  # R;G;B
-    return "128;128;128"  # default gray
+    if not color_seq:
+        return "128;128;128"
+    
+    # If it's an ANSI sequence, extract RGB
+    if color_seq.startswith("\033[38;2;"):
+        parts = color_seq[7:-1].split(";")  # strip \033[38;2; and m
+        if len(parts) >= 3:
+            return f"{parts[0]};{parts[1]};{parts[2]}"
+        return "128;128;128"
+    
+    # If it's already an RGB triplet (contains two semicolons)
+    if color_seq.count(";") >= 2:
+        return color_seq
+    
+    return "128;128;128"
 
 
 def volume_bar(volume: int, width: int) -> str:
