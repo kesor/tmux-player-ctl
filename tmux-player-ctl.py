@@ -647,12 +647,9 @@ def _format_player_name(player: str) -> str:
 def header_row() -> str:
     """Header row with status, player name, and switch."""
     global s
-    status_w = 12  # 2 icon + 1 space + 9 max "recording"
+    status_w = 20  # 2 icon + space + max status "No MPRIS player" (18 chars)
     switch_w = 9  # 2 icon + 1 space + 6 "switch"
-    # -2 for the 2 spaces row() adds between slots (total 12+1+47+1+9=70)
-    # plus row() format adds 2 more: │ {content} │ = 74
-    # For row to be 72, content should be 70, so player_w = 47 - 2 = 45
-    player_w = Config.INNER_W - status_w - switch_w - 2
+    player_w = Config.INNER_W - status_w - switch_w - 2  # 2 for the gaps between slots
 
     status_icon = icon(_status_icon(s.state.status))
     status_text = colorize(
