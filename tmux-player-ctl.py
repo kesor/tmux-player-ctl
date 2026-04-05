@@ -629,7 +629,7 @@ class Theme:
     VOL_LOW = os.environ.get("TPCTL_VOL_LOW", "\033[38;2;166;227;161m")  # green
     VOL_MED = os.environ.get("TPCTL_VOL_MED", "\033[38;2;249;226;175m")  # yellow
     VOL_HIGH = os.environ.get("TPCTL_VOL_HIGH", "\033[38;2;243;139;168m")  # red
-    VOL_EMPTY = os.environ.get("TPCTL_VOL_EMPTY", "\033[38;2;108;112;134m")  # overlay0
+    VOL_EMPTY = os.environ.get("TPCTL_VOL_EMPTY", "\033[38;2;17;17;27m")  # dark base
 
     # Reset includes background color so it's reapplied after each reset
     RESET = f"\033[0m{'' if not BG else f'\033[48;2;{BG}m'}"
