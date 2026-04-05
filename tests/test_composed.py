@@ -240,12 +240,12 @@ class TestProgressRow(unittest.TestCase):
         self.assertTrue(strip_visible(result).endswith(" │"))
 
     def test_progress_zero_length(self):
-        """Zero length shows '0:00' for both times."""
+        """Zero length shows 'Live' for total time (streaming content)."""
         tpc.s.state.length = 0.0
         tpc.s.state.position = 0.0
         result = tpc.progress_row()
-        # Both times should be 0:00
-        self.assertIn("0:00", result)
+        # Total time should be 'Live' for streaming
+        self.assertIn("Live", result)
 
     def test_progress_short_track(self):
         """Short track (30 seconds) shows correct times."""

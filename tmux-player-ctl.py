@@ -54,9 +54,10 @@ def detect_terminal_width() -> int:
 
 
 def detect_and_apply_terminal_width():
-    """Detect terminal width and clamp Config.UI_WIDTH to max 72."""
+    """Detect terminal width and clamp Config.UI_WIDTH to max 72, min 28."""
     terminal_width = detect_terminal_width()
-    Config.UI_WIDTH = min(72, terminal_width)
+    # Clamp: minimum 28 for valid UI, maximum 72
+    Config.UI_WIDTH = max(28, min(72, terminal_width))
     Config.INNER_W = Config.UI_WIDTH - 4
 
 
@@ -868,7 +869,7 @@ def progress_row():
     """Progress row: time + bar + time."""
     global s
     start = format_time(s.state.position)  # elapsed time: MM:SS
-    end = format_time(s.state.length)  # total time: shows hours if needed
+    end = format_time(s.state.length, is_length=True)  # total time: 'Live' if zero-length (streaming)
     # Save time widths for volume row alignment
     s.state._start_time_w = len(start)
     s.state._end_time_w = len(end)
@@ -1070,9 +1071,15 @@ def truncate(text: str, width: int) -> str:
     return result + "…"
 
 
-def format_time(seconds: float) -> str:
+def format_time(seconds: float, is_length: bool = False) -> str:
+    """Format time as MM:SS or H:MM:SS.
+
+    Args:
+        seconds: Time in seconds
+        is_length: If True and seconds <= 0, returns 'Live' for streaming content
+    """
     if seconds <= 0:
-        return "0:00"
+        return "Live" if is_length else "0:00"
     hours = int(seconds // 3600)
     minutes = int((seconds % 3600) // 60)
     secs = int(seconds % 60)
@@ -1102,10 +1109,21 @@ def progress_bar(current: float, total: float, total_width: int) -> str:
 
 
 def _color_rgb(color_seq: str) -> str:
-    """Extract RGB values from a color escape sequence like '\033[38;2;R;G;Bm'."""
+    """Extract RGB values from a color escape sequence like '\033[38;2;R;G;Bm'.
+
+    Handles non-24-bit formats gracefully by returning a default gray.
+    """
     # Format: \033[38;2;R;G;Bm
-    nums = color_seq[2:-1].split(";")  # strip \033[ and m, split by ;
-    return f"{nums[2]};{nums[3]};{nums[4]}"  # R;G;B
+    # After stripping \033[ and m, split gives: ['38', '2', 'R', 'G', 'B']
+    # Handle empty or too-short strings
+    if not color_seq or len(color_seq) < 12:
+        return "128;128;128"  # default gray
+    parts = color_seq[2:-1].split(";")  # strip \033[ and m, split by ;
+    # Validate: parts should have 5 elements ['38', '2', 'R', 'G', 'B']
+    # parts[1] should be "2" for 24-bit RGB format
+    if len(parts) >= 5 and parts[1] == "2":
+        return f"{parts[2]};{parts[3]};{parts[4]}"  # R;G;B
+    return "128;128;128"  # default gray
 
 
 def volume_bar(volume: int, width: int) -> str:
