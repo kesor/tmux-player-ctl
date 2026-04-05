@@ -28,6 +28,7 @@ from typing import Optional, List
 
 class Config:
     UI_WIDTH = 72  # Width of the UI box
+    INNER_W = UI_WIDTH - 4  # Content area width (excluding borders and padding)
     SEEK_SECONDS = 10
 
 
@@ -40,10 +41,10 @@ _playerctl_pool = ThreadPoolExecutor(max_workers=2, thread_name_prefix="pctl")
 # Unicode symbols (VS15 \uFE0E for text presentation)
 ICONS = {
     # Status
-    "play": "\u23f5\ufe0e",  # ▶
-    "record": "\u23fa\ufe0e ",  # ⏺
-    "pause": "\u23f8\ufe0e ",  # ⏸
-    "stop": "\u25a0\ufe0e",  # ■
+    "playing": "\u23f5\ufe0e",  # ▶
+    "recording": "\u23fa\ufe0e ",  # ⏺
+    "paused": "\u23f8\ufe0e ",  # ⏸
+    "stopped": "\u25a0\ufe0e",  # ■
     "play-pause": "\u23ef\ufe0e",  # ⏯
     # Navigation
     "tab": "\u21e5\ufe0e",  # ⇥ tab
@@ -73,6 +74,18 @@ ICONS = {
 def icon(name: str) -> str:
     """Return the raw icon symbol."""
     return ICONS.get(name, "?")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Icon lookups
+# ─────────────────────────────────────────────────────────────────────────────
+
+VOL_ICONS = {
+    0: "vol-muted",
+    (1, 32): "vol-low",
+    (33, 65): "vol-med",
+    (66, 100): "vol-high",
+}
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -618,14 +631,8 @@ def border_bot() -> str:
 
 
 def _status_icon(status: str) -> str:
-    """Get icon name for status."""
-    icons = {
-        "Playing": "play",
-        "Paused": "pause",
-        "Stopped": "stop",
-        "Recording": "record",
-    }
-    return icons.get(status, "stop")
+    """Get icon name for status (lowercase)."""
+    return status.lower()
 
 
 def _format_player_name(player: str) -> str:
@@ -642,7 +649,7 @@ def header_row() -> str:
     global s
     status_w = 12  # 2 icon + 1 space + 9 max "recording"
     switch_w = 9  # 2 icon + 1 space + 6 "switch"
-    inner_w = Config.UI_WIDTH - 4
+    inner_w = Config.INNER_W
     player_w = inner_w - status_w - switch_w
 
     status_icon = icon(_status_icon(s.state.status))
@@ -780,14 +787,13 @@ def progress_row():
 
 def _volume_icon(vol: int) -> str:
     """Get icon name for volume level (vol is 0-100)."""
-    if vol == 0:
-        return "vol-muted"
-    elif vol < 33:
-        return "vol-low"
-    elif vol < 66:
-        return "vol-med"
-    else:
-        return "vol-high"
+    for key, name in VOL_ICONS.items():
+        if isinstance(key, tuple):
+            if key[0] <= vol <= key[1]:
+                return name
+        elif key == vol:
+            return name
+    return "vol-high"
 
 
 def toolbar_row():

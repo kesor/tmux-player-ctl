@@ -257,5 +257,49 @@ class TestResetStateFull(unittest.TestCase):
         self.assertEqual(tpc.s.state.status, "No player")
 
 
+class TestConfigInnerW(unittest.TestCase):
+    """Test Config.INNER_W = UI_WIDTH - 4."""
+
+    def test_config_has_inner_w(self):
+        """Config should have INNER_W attribute."""
+        self.assertTrue(hasattr(tpc.Config, "INNER_W"))
+
+    def test_inner_w_is_ui_width_minus_4(self):
+        """INNER_W should equal UI_WIDTH - 4."""
+        self.assertEqual(tpc.Config.INNER_W, tpc.Config.UI_WIDTH - 4)
+
+
+class TestIconDicts(unittest.TestCase):
+    """Test VOL_ICONS dict."""
+
+    def test_status_icon_uses_lower(self):
+        """_status_icon should return status.lower()."""
+        self.assertEqual(tpc._status_icon("Playing"), "playing")
+        self.assertEqual(tpc._status_icon("Paused"), "paused")
+        self.assertEqual(tpc._status_icon("Stopped"), "stopped")
+        self.assertEqual(tpc._status_icon("Recording"), "recording")
+
+    def test_vol_icons_exists(self):
+        """VOL_ICONS dict should exist."""
+        self.assertTrue(hasattr(tpc, "VOL_ICONS"))
+        self.assertIsInstance(tpc.VOL_ICONS, dict)
+
+    def test_vol_icons_muted_at_zero(self):
+        """VOL_ICONS should have vol-muted for 0."""
+        self.assertEqual(tpc.VOL_ICONS[0], "vol-muted")
+
+    def test_vol_icons_low_under_33(self):
+        """VOL_ICONS should have vol-low for 1-32."""
+        self.assertEqual(tpc.VOL_ICONS[(1, 32)], "vol-low")
+
+    def test_vol_icons_med_under_66(self):
+        """VOL_ICONS should have vol-med for 33-65."""
+        self.assertEqual(tpc.VOL_ICONS[(33, 65)], "vol-med")
+
+    def test_vol_icons_high_above_65(self):
+        """VOL_ICONS should have vol-high for 66+."""
+        self.assertEqual(tpc.VOL_ICONS[(66, 100)], "vol-high")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

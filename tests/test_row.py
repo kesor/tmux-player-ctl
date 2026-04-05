@@ -136,7 +136,7 @@ class TestRow(unittest.TestCase):
         self.assertIn("\x1b[92m", result)
 
     def test_row_with_icon_and_text(self):
-        icon = tpc.icon("play")
+        icon = tpc.icon("playing")
         result = tpc.row((f"{icon:<4}", 4, "<"), (f"{'Title':<10}", 10, "^"))
         self.assertTrue(strip_visible(result).startswith("│ "))
         self.assertIn("⏵", result)
@@ -172,7 +172,7 @@ class TestRow(unittest.TestCase):
         self.assertIn("75%", result)
 
     def test_row_all_slots_total_width(self):
-        icon = tpc.icon("play")
+        icon = tpc.icon("playing")
         result = tpc.row((icon, 4, "<"), ("Test Title", 20, "^"))
         self.assertTrue(strip_visible(result).startswith("│ "))
         self.assertTrue(strip_visible(result).endswith(" │"))
@@ -318,16 +318,16 @@ class TestIcon(unittest.TestCase):
     """Test icon() - returns raw symbol from ICONS by name."""
 
     def test_icon_play(self):
-        result = tpc.icon("play")
-        self.assertEqual(result, tpc.ICONS["play"])
+        result = tpc.icon("playing")
+        self.assertEqual(result, tpc.ICONS["playing"])
 
     def test_icon_pause(self):
-        result = tpc.icon("pause")
-        self.assertEqual(result, tpc.ICONS["pause"])
+        result = tpc.icon("paused")
+        self.assertEqual(result, tpc.ICONS["paused"])
 
     def test_icon_stop(self):
-        result = tpc.icon("stop")
-        self.assertEqual(result, tpc.ICONS["stop"])
+        result = tpc.icon("stopped")
+        self.assertEqual(result, tpc.ICONS["stopped"])
 
     def test_icon_play_pause(self):
         result = tpc.icon("play-pause")
@@ -639,7 +639,7 @@ class TestLayout(unittest.TestCase):
 
     def test_row_with_icon_and_text_fits_width(self):
         """Icon + text should fit in row width."""
-        icon = tpc.icon("play")
+        icon = tpc.icon("playing")
         text = "Test Song Title"
         result = tpc.row((f"{icon:<4}", 4, "<"), (f"{text:<20}", 20, "^"))
         # Just check it has borders
@@ -662,7 +662,7 @@ class TestLayout(unittest.TestCase):
 
     def test_row_all_slots_total_width(self):
         """Row contains icon and title content."""
-        icon = tpc.icon("play")
+        icon = tpc.icon("playing")
         result = tpc.row((f"{icon:<4}", 4, "<"), (f"{'Test Title':<10}", 10, "^"))
 
         self.assertIn("⏵", result)
