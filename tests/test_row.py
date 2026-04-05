@@ -179,52 +179,53 @@ class TestRow(unittest.TestCase):
         self.assertIn("⏵", result)
         self.assertIn("Test Title", result)
 
-    def test_volume_bar_zero_fills_none(self):
+    def test_volume_bar_zero_shows_empty_blocks(self):
         """Volume 0 returns all empty blocks."""
         result = tpc.volume_bar(0, 10)
-        # Should be 10 empty blocks (no filled)
+        # Should be 10 empty blocks
         self.assertNotIn("█", result)
         self.assertIn("░", result)
 
     def test_volume_bar_full_fills_all(self):
-        """Volume 100 returns all filled blocks."""
+        """Volume 100 fills all character positions."""
         result = tpc.volume_bar(100, 10)
-        # Should be 10 filled blocks
-        filled = result.count("█")
+        # Should be 10 characters (filled blocks or dither chars)
+        filled = result.count("█") + result.count("▒") + result.count("▓")
         self.assertEqual(filled, 10)
 
     def test_volume_bar_half_fills_half(self):
-        """Volume 50 returns half filled, half empty."""
+        """Volume 50 fills half the bar."""
         result = tpc.volume_bar(50, 10)
-        filled = result.count("█")
+        filled = result.count("█") + result.count("▒") + result.count("▓")
         empty = result.count("░")
-        self.assertEqual(filled + empty, 10)
+        self.assertEqual(filled, 5)
+        self.assertEqual(empty, 5)
 
     def test_volume_bar_clamped_at_max(self):
-        """Volume > 100 clamped to 100."""
+        """Volume > 100 clamped to full."""
         result = tpc.volume_bar(150, 10)
-        filled = result.count("█")
+        filled = result.count("█") + result.count("▒") + result.count("▓")
         self.assertEqual(filled, 10)
 
-    def test_volume_bar_color_muted(self):
-        """Volume 0 uses VOL_MUTED color."""
-        result = tpc.volume_bar(0, 10)
-        self.assertIn(tpc.Theme.VOL_MUTED, result)
-
-    def test_volume_bar_color_low(self):
-        """Volume 1-33 uses VOL_LOW color."""
-        result = tpc.volume_bar(20, 10)
+    def test_volume_bar_has_green_zone(self):
+        """Volume bar in green zone uses VOL_LOW color."""
+        result = tpc.volume_bar(30, 10)  # 30% = green zone
         self.assertIn(tpc.Theme.VOL_LOW, result)
 
-    def test_volume_bar_color_med(self):
-        """Volume 34-66 uses VOL_MED color."""
-        result = tpc.volume_bar(50, 10)
+    def test_volume_bar_has_yellow_zone(self):
+        """Volume bar in yellow zone uses VOL_MED color."""
+        result = tpc.volume_bar(60, 10)  # 60% = yellow zone
         self.assertIn(tpc.Theme.VOL_MED, result)
 
-    def test_volume_bar_color_high(self):
-        """Volume 67-100 uses VOL_HIGH color."""
-        result = tpc.volume_bar(80, 10)
+    def test_volume_bar_has_red_zone(self):
+        """Volume bar in red zone uses VOL_HIGH color."""
+        result = tpc.volume_bar(90, 10)  # 90% = red zone
         self.assertIn(tpc.Theme.VOL_HIGH, result)
+
+    def test_volume_bar_has_empty_section(self):
+        """Volume bar has empty blocks after filled section."""
+        result = tpc.volume_bar(70, 10)  # 70% filled
+        self.assertIn("░", result)  # Has empty blocks
 
     def test_volume_bar_resets_color(self):
         """Volume bar ends with color reset."""

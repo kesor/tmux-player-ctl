@@ -623,13 +623,12 @@ class Theme:
         "TPCTL_PROGRESS_EMPTY", "\033[38;2;108;112;134m"
     )  # overlay0
 
-    # Volume bar (gradient: red → yellow → green)
+    # Volume bar (VU meter gradient: green → yellow → red)
+    # Low=green, Med=yellow, High=red, Empty=dimmed
     VOL_MUTED = os.environ.get("TPCTL_VOL_MUTED", "\033[38;2;243;139;168m")  # red
-    VOL_LOW = os.environ.get("TPCTL_VOL_LOW", "\033[38;2;249;226;175m")  # yellow
-    VOL_MED = os.environ.get("TPCTL_VOL_MED", "\033[38;2;166;227;161m")  # green
-    VOL_HIGH = os.environ.get(
-        "TPCTL_VOL_HIGH", "\033[38;2;166;227;161m"
-    )  # bright green
+    VOL_LOW = os.environ.get("TPCTL_VOL_LOW", "\033[38;2;166;227;161m")  # green
+    VOL_MED = os.environ.get("TPCTL_VOL_MED", "\033[38;2;249;226;175m")  # yellow
+    VOL_HIGH = os.environ.get("TPCTL_VOL_HIGH", "\033[38;2;243;139;168m")  # red
     VOL_EMPTY = os.environ.get("TPCTL_VOL_EMPTY", "\033[38;2;108;112;134m")  # overlay0
 
     # Reset includes background color so it's reapplied after each reset
@@ -1090,20 +1089,70 @@ def progress_bar(current: float, total: float, total_width: int) -> str:
     )
 
 
+def _color_rgb(color_seq: str) -> str:
+    """Extract RGB values from a color escape sequence like '\033[38;2;R;G;Bm'."""
+    # Format: \033[38;2;R;G;Bm
+    nums = color_seq[2:-1].split(";")  # strip \033[ and m, split by ;
+    return f"{nums[2]};{nums[3]};{nums[4]}"  # R;G;B
+
+
 def volume_bar(volume: int, width: int) -> str:
-    """Build volume bar (volume is 0-100)."""
-    filled = min(int(volume * width // 100), width)
-    empty = width - filled
-    # Color based on volume level (volume is already 0-100)
+    """Build VU-meter style volume bar with dithered color gradient.
+    
+    Zones: green (0-50%), yellow (50-80%), red (80-100%)
+    Transitions use half-block characters (░▒▓█) with FG/BG color mixing.
+    """
     if volume == 0:
-        fill_color = Theme.VOL_MUTED
-    elif volume <= 33:
-        fill_color = Theme.VOL_LOW
-    elif volume <= 66:
-        fill_color = Theme.VOL_MED
-    else:
-        fill_color = Theme.VOL_HIGH
-    return f"{fill_color}{'█' * filled}{Theme.VOL_EMPTY}{'░' * empty}{Theme.RESET}"
+        return f"{Theme.VOL_EMPTY}{'░' * width}{Theme.RESET}"
+    
+    filled = min(int(volume * width // 100), width)
+    
+    # Zone boundaries (absolute positions)
+    green_end = int(width * 0.50)   # green zone: [0, green_end)
+    yellow_end = int(width * 0.80)  # yellow zone: [green_end, yellow_end)
+    # red zone: [yellow_end, width)
+    
+    # Block density: ░ (25%), ▒ (50%), ▓ (75%), █ (100%)
+    blocks = ["▒", "▓", "█"]  # start at 50% density for smoother transition
+    
+    result = []
+    for i in range(width):
+        if i < filled:
+            # This position is filled
+            if i < green_end - 1:
+                # Deep in green zone - solid
+                result.append(f"{Theme.VOL_LOW}█")
+            elif i < green_end:
+                # At end of green - transition if yellow zone is filled
+                if filled > green_end:
+                    # Transitioning to yellow - use dither
+                    t = (i - (green_end - 1))
+                    block = blocks[min(t, len(blocks) - 1)]
+                    fg_rgb = _color_rgb(Theme.VOL_MED)
+                    bg_rgb = _color_rgb(Theme.VOL_LOW)
+                    result.append(f"\033[38;2;{fg_rgb}m\033[48;2;{bg_rgb}m{block}")
+                else:
+                    result.append(f"{Theme.VOL_LOW}█")
+            elif i < yellow_end - 1:
+                # Deep in yellow zone - solid
+                result.append(f"{Theme.VOL_MED}█")
+            elif i < yellow_end:
+                # At end of yellow - transition if red zone is filled
+                if filled > yellow_end:
+                    t = (i - (yellow_end - 1))
+                    block = blocks[min(t, len(blocks) - 1)]
+                    fg_rgb = _color_rgb(Theme.VOL_HIGH)
+                    bg_rgb = _color_rgb(Theme.VOL_MED)
+                    result.append(f"\033[38;2;{fg_rgb}m\033[48;2;{bg_rgb}m{block}")
+                else:
+                    result.append(f"{Theme.VOL_MED}█")
+            else:
+                # Deep in red zone - solid
+                result.append(f"{Theme.VOL_HIGH}█")
+        else:
+            result.append(f"{Theme.VOL_EMPTY}░")
+    
+    return "".join(result) + Theme.RESET
 
 
 def run_playerctl_async(*args) -> None:
