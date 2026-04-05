@@ -1,6 +1,6 @@
 # `tmux-player-ctl`
 
-A minimal tmux popup controller for [MPRIS](https://specifications.freedesktop.org/mpris-spec/) media players via `playerctl`.
+A minimal tmux popup controller for [MPRIS](https://specifications.freedesktop.org/mpris-spec/) media players via [`playerctl`](https://github.com/altdesktop/playerctl).
 
 ![screenshot](./screenshot.png)
 
