@@ -165,9 +165,11 @@ class PlayerTracker:
     state: "PlayerState" = None  # type: ignore[assignment]
     last_command_time: float = 0.0
     meta_proc: Optional["subprocess.Popen"] = None
+    _meta_buf: str = ""  # Buffer for metadata follower output
 
     def __init__(self) -> None:
         self.state = PlayerState()
+        self._meta_buf = ""
 
 
 s = PlayerTracker()
@@ -1361,23 +1363,91 @@ def read_key(fd: int):
     return (ch, ch2 + ch3)
 
 
-def read_metadata_from_follower(raw: str) -> None:
-    """Parse and apply metadata from a raw follower data chunk.
+def _extract_complete_metadata_blocks(data: str) -> List[str]:
+    """Extract complete metadata blocks from buffered data.
 
-    Handles partial blocks (playerctl only sends non-empty fields).
+    This is the core buffering function that handles chunk boundaries:
+    1. Appends new data to the persistent buffer
+    2. Finds complete blocks (starting with \n@0@)
+    3. Returns list of complete blocks
+    4. Leaves partial data in the buffer for next read
+
+    Block format from playerctl:
+    \n@0@playerName\n@1@status\n@2@title...
+
+    Strategy: Only extract blocks when we see TWO complete blocks.
+    This ensures we never extract a partial block.
     """
-    parts = raw.split("\n@")
-    if not parts:
-        return
-    # parts[0] is empty (before leading \n) or '@0@val' (without leading \n)
-    # Normalize: prepend '' so parsing is uniform
-    if parts[0] != "":
-        parts = [""] + parts
-    # Process all fields at once (may be < 39)
-    block = "@" + "\n@".join(parts[1:])
-    parsed = parse_metadata(block)
-    if parsed:
-        update_state_from_metadata(parsed)
+    global s
+
+    # Append new data to buffer
+    s._meta_buf += data
+
+    complete_blocks: List[str] = []
+
+    # Find first \n@0@ (start of first potential block)
+    first_match = re.search(r'\n@0@', s._meta_buf)
+    if not first_match:
+        # No block start, clear garbage if buffer is only whitespace
+        if s._meta_buf.strip() == "":
+            s._meta_buf = ""
+        return complete_blocks
+
+    first_start = first_match.start()
+
+    # Find second \n@0@ (marks start of second block = end of first complete block)
+    remaining_after_first = s._meta_buf[first_start + 4:]  # Skip past \n@0@
+    second_match = re.search(r'\n@0@', remaining_after_first)
+    if not second_match:
+        # Only one potential block - keep as partial, don't extract
+        s._meta_buf = s._meta_buf[first_start:]
+        return complete_blocks
+
+    # We have at least two blocks - extract the first (complete) one
+    second_start = first_start + 4 + second_match.start()
+    block = s._meta_buf[first_start:second_start]
+    complete_blocks.append(block)
+
+    # Process remaining data (after the first complete block)
+    remaining = s._meta_buf[second_start:]
+    s._meta_buf = remaining
+
+    # Now extract all complete blocks from remaining
+    while True:
+        next_match = re.search(r'\n@0@', s._meta_buf)
+        if not next_match:
+            break
+
+        next_start = next_match.start()
+        remaining_after = s._meta_buf[next_start + 4:]  # Skip past \n@0@
+        next_next = re.search(r'\n@0@', remaining_after)
+
+        if next_next:
+            # Complete block
+            block_end = next_start + 4 + next_next.start()
+            block = s._meta_buf[next_start:block_end]
+            complete_blocks.append(block)
+            s._meta_buf = remaining_after[next_next.start() + 4:]
+        else:
+            # No more complete blocks - keep partial in buffer
+            s._meta_buf = s._meta_buf[next_start:]
+            break
+
+    return complete_blocks
+
+
+def read_metadata_from_follower(raw: str) -> None:
+    """Parse and apply metadata from buffered follower data.
+
+    Uses _extract_complete_metadata_blocks to handle chunk boundaries
+    and only processes complete blocks.
+    """
+    complete_blocks = _extract_complete_metadata_blocks(raw)
+
+    for block in complete_blocks:
+        parsed = parse_metadata(block)
+        if parsed:
+            update_state_from_metadata(parsed)
 
 
 def main():

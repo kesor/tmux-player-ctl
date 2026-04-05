@@ -103,6 +103,7 @@ class TestReadMetadataFromFollower(unittest.TestCase):
         self._orig = tpc.s.state
         tpc.s.state = tpc.PlayerState()
         tpc.s.last_command_time = 0
+        tpc.s._meta_buf = ""  # Reset buffer
 
     def tearDown(self):
         tpc.s.state = self._orig
@@ -126,6 +127,8 @@ class TestReadMetadataFromFollower(unittest.TestCase):
         raw = "\n" + "\n".join(
             f"@{i}@{fields.get(f, '')}" for i, f in enumerate(tpc.METADATA_FIELDS)
         )
+        # Add second block to trigger extraction (buffering requires 2 blocks)
+        raw += "\n@0@spotify\n@1@Paused\n@2@Next"
         tpc.read_metadata_from_follower(raw)
         self.assertEqual(tpc.s.state.title, "Song")
         self.assertEqual(tpc.s.state.status, "Playing")
@@ -136,6 +139,8 @@ class TestReadMetadataFromFollower(unittest.TestCase):
         raw = (
             "\n@0@spotify\n@1@Playing\n@2@Test\n@3@Multi\nLine\nArtist"
         )
+        # Add second block to trigger extraction
+        raw += "\n@0@spotify\n@1@Paused\n@2@Next"
         tpc.read_metadata_from_follower(raw)
         self.assertEqual(tpc.s.state.artist, "Multi\nLine\nArtist")
 
@@ -143,6 +148,8 @@ class TestReadMetadataFromFollower(unittest.TestCase):
         """Player sends only non-empty fields - should still parse."""
         # Simulate player sending only fields 0-4
         raw = "\n@0@spotify\n@1@Playing\n@2@Test Song\n@3@Artist\n@4@Album"
+        # Add second block to trigger extraction
+        raw += "\n@0@spotify\n@1@Paused\n@2@Next"
         tpc.read_metadata_from_follower(raw)
         self.assertEqual(tpc.s.state.player, "")
         self.assertEqual(tpc.s.state.title, "Test Song")
