@@ -681,10 +681,11 @@ def _format_player_name(player: str) -> str:
 
 
 def header_row() -> str:
-    """Header row with status, player name, and switch."""
+    """"Header row with status, player name, and switch."""
     global s
     status_w = 20
     switch_w = 9
+    inner_w = Config.INNER_W  # Full content width = 68
 
     status_icon = icon(_status_icon(s.state.status))
     status_text = f"{status_icon} {s.state.status.lower()}"
@@ -692,31 +693,14 @@ def header_row() -> str:
     player_name = _format_player_name(s.state.player)
     player_name_w = visible_width(player_name)
     
-    # Center player name in the FULL inner width
-    inner_w = Config.INNER_W - 2
-    player_center = (inner_w - player_name_w) // 2
-    
-    # Player slot starts at position status_w + 1
-    slot_start = status_w + 1
-    
-    # Decide padding FIRST, then truncate if needed
-    if player_center > slot_start:
-        # Can center - add extra left padding
-        extra_padding = player_center - slot_start
-        player_name = " " * extra_padding + player_name
-        player_name_w = visible_width(player_name)
-    
     # Switch
-    switch_text = f"{icon('tab')} switch" if len(s.available_players) > 1 else ""
+    has_switch = len(s.available_players) > 1
+    switch_text = f"{icon('tab')} switch" if has_switch else ""
     
-    # Calculate actual widths
-    status_visible = visible_width(status_text)
-    switch_visible = visible_width(switch_text)
-    
-    # Calculate max name width so total fits: status + gap + (space + name + space) + gap + switch = inner_w
-    # = status_visible + 1 + 1 + name_w + 1 + switch_visible = inner_w
-    # = name_w = inner_w - status_visible - switch_visible - 4
-    max_name_visible = inner_w - status_visible - switch_visible - 4
+    # Calculate max name width so total fits: status + gap + name + gap + switch = inner_w
+    # Use status_w and switch_w (fixed) for consistent layout
+    actual_switch_w = switch_w if has_switch else 0
+    max_name_visible = inner_w - status_w - actual_switch_w - 2
     
     if player_name_w > max_name_visible:
         # Truncate to fit, then adjust if we overshoot due to CJK boundary
@@ -727,28 +711,30 @@ def header_row() -> str:
             player_name = truncate(player_name, max_name_visible - 2)
             player_name_w = visible_width(player_name)
     
-    # Build content with 1-space gaps
-    player_content = f" {player_name} "
+    # Remaining space for player name
+    # row() adds 1 space between adjacent slots
+    # With switch: status(20) + space(1) + player + space(1) + switch(9) = inner_w(68)
+    # Without switch: status(20) + space(1) + player = inner_w(68)
+    if has_switch:
+        player_slot_w = inner_w - status_w - 1 - 1 - switch_w  # -2 for both gaps
+    else:
+        player_slot_w = inner_w - status_w - 1
     
-    # Pad player to fill exactly inner_w
-    current_total = status_visible + 1 + visible_width(player_content) + 1 + switch_visible
-    if current_total < inner_w:
-        player_content = player_content + " " * (inner_w - current_total)
+    # Center player name in its slot
+    extra_padding = (player_slot_w - player_name_w) // 2
+    if extra_padding > 0:
+        player_name = " " * extra_padding + player_name
     
     # Colorize status
     status_colored = colorize(status_text, status_color(s.state.status))
-    switch_colored = colorize(icon('tab'), Theme.KEY_HINT) + " switch" if switch_text else ""
+    switch_colored = colorize(icon('tab'), Theme.KEY_HINT) + " switch" if has_switch else ""
     
-    # Build full content with gaps
-    content = f"{status_colored} {player_content} {switch_colored}"
-    content_w = visible_width(content)
-    # Pad content so total row width = UI_WIDTH
-    # Format: │ {content} │ = 1 + 1 + content + 1 = content + 3
-    target_w = Config.UI_WIDTH - 3
-    if content_w < target_w:
-        content = content + " " * (target_w - content_w)
-    
-    return f"{Theme.BORDER}│{Theme.RESET} {content}{Theme.BORDER}│{Theme.RESET}"
+    # Use row() with fixed widths for consistent layout
+    return row(
+        (status_colored, status_w, "<"),
+        (player_name, player_slot_w, "<"),
+        (switch_colored, switch_w, ">") if has_switch else None,
+    )
 
 def _info_row(label: str, value: str):
     """Info row: label (7) + value (remaining)."""
