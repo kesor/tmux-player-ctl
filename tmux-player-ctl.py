@@ -452,6 +452,7 @@ def switch_player() -> Optional[subprocess.Popen]:
         s.current_player = ""
         s.current_player_idx = -1
         s.meta_proc = None
+        s._meta_buf = ""  # Clear buffer when no players
         return None
 
     # Handle case where previous player is no longer available
@@ -463,6 +464,7 @@ def switch_player() -> Optional[subprocess.Popen]:
 
     # Reset state so stale metadata from previous player doesn't linger
     reset_state()
+    s._meta_buf = ""  # Clear buffer when switching players
     s.state.player = s.current_player
     # Query shuffle and loop state (not in metadata follower)
     s.state.shuffle = run_playerctl("shuffle").strip() or "false"
@@ -1520,6 +1522,7 @@ def main():
                 # Check if process died
                 if s.meta_proc.poll() is not None:
                     cleanup_proc(s.meta_proc)
+                    s._meta_buf = ""  # Clear buffer when follower restarts
                     s.meta_proc = start_metadata_follower() if s.current_player else None
 
             if stdin_fd is not None and stdin_fd in readable:
