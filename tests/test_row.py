@@ -261,6 +261,26 @@ class TestProgressBar(unittest.TestCase):
         result = tpc.progress_bar(50.0, 100.0, 10)
         self.assertIn("\033[0m", result)
 
+    def test_progress_bar_beyond_length_returns_full_bar(self):
+        """Progress beyond track length should return full bar (not overflow)."""
+        # Bug: when seeking beyond track length, bar became 1 char longer
+        result = tpc.progress_bar(110.0, 100.0, 10)
+        # Should still be exactly 10 characters (not 11)
+        visible = ANSI.sub("", result)
+        self.assertEqual(len(visible), 10)
+
+    def test_progress_bar_at_length_is_full(self):
+        """Progress at 100% should show full bar."""
+        result = tpc.progress_bar(100.0, 100.0, 10)
+        visible = ANSI.sub("", result)
+        self.assertEqual(len(visible), 10)
+
+    def test_progress_bar_slightly_beyond_length(self):
+        """Progress slightly beyond track length should still fit."""
+        result = tpc.progress_bar(100.1, 100.0, 10)
+        visible = ANSI.sub("", result)
+        self.assertEqual(len(visible), 10)
+
 
 class TestFormatTime(unittest.TestCase):
     """Test format_time() - seconds to MM:SS formatting."""

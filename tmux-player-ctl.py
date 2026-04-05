@@ -936,7 +936,10 @@ def format_time(seconds: float) -> str:
 def progress_bar(current: float, total: float, total_width: int) -> str:
     if total <= 0:
         return "─" * total_width
-    filled_w = min(int((current / total) * total_width), total_width)
+    # Clamp current to total to prevent overflow
+    clamped = min(current, total)
+    # Reserve 1 char for indicator, so filled_w max is total_width - 1
+    filled_w = min(int((clamped / total) * (total_width - 1)), total_width - 1)
     empty_w = total_width - filled_w - 1
     return (
         Theme.PROGRESS_FILL
