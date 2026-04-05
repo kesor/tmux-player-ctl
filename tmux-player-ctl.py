@@ -673,9 +673,8 @@ def header_row() -> str:
 
 def _info_row(label: str, value: str):
     """Info row: label (7) + value (remaining)."""
-    inner = Config.UI_WIDTH - 4
     lw, gap = 7, 1
-    vw = inner - lw - gap
+    vw = Config.INNER_W - lw - gap
     label_colored = colorize(f"{label:>{lw}}", Theme.DIM)
     value_text = truncate(value, vw)
     return row(
@@ -704,7 +703,6 @@ def _track_row_slots(title: str, track_number: str, track_count: int):
     Track number is only displayed when BOTH track_number and track_count
     are available (format: "X / Y"). Otherwise, only the title is shown.
     """
-    inner = Config.UI_WIDTH - 4
     lw, gap = 7, 1
 
     # Normalize track_count to int for comparison
@@ -720,12 +718,12 @@ def _track_row_slots(title: str, track_number: str, track_count: int):
         tn_text = f"{track_number} / {track_count_int}"
         tn_slot_w = len(tn_text)
         # Title width: inner - label - gap - title - gap - track_num
-        tw = inner - lw - gap - gap - tn_slot_w
+        tw = Config.INNER_W - lw - gap - gap - tn_slot_w
     else:
         tn_text = ""
         tn_slot_w = 0
         # Title width: inner - label - gap - title (no trailing gap)
-        tw = inner - lw - gap
+        tw = Config.INNER_W - lw - gap
 
     # Truncate title if needed
     title_text = truncate(title, tw) if tw > 0 else ""
@@ -768,14 +766,13 @@ def artist_row():
 def progress_row():
     """Progress row: time + bar + time."""
     global s
-    inner = Config.UI_WIDTH - 4
     start = format_time(s.state.position)  # elapsed time: MM:SS
     end = format_time(s.state.length)  # total time: shows hours if needed
     # Save time widths for volume row alignment
     s.state._start_time_w = len(start)
     s.state._end_time_w = len(end)
     bar_w = (
-        inner - s.state._start_time_w - 1 - 1 - s.state._end_time_w
+        Config.INNER_W - s.state._start_time_w - 1 - 1 - s.state._end_time_w
     )  # inner - start - gap - gap - end
     bar = progress_bar(s.state.position, s.state.length, bar_w)
     return row(
@@ -799,7 +796,6 @@ def _volume_icon(vol: int) -> str:
 def toolbar_row():
     """Toolbar with controls."""
     global s
-    inner = Config.UI_WIDTH - 4
 
     # Build each tool
     seek = f"{colorize(icon('seek'), Theme.KEY_HINT)} seek"  # 7
@@ -820,22 +816,21 @@ def toolbar_row():
 
     gaps_w = 6 * 2
     tool_w = 7 + 9 + 4 + 7 + 4 + 4 + 11 + gaps_w
-    pad_w = int((inner - tool_w) / 2)
+    pad_w = int((Config.INNER_W - tool_w) / 2)
     pad = " " * pad_w
 
-    return row((f"{pad}{tools:^{tool_w}}{pad}", inner, "^"))
+    return row((f"{pad}{tools:^{tool_w}}{pad}", Config.INNER_W, "^"))
 
 
 def volume_row():
     """Volume row: icon + bar + percentage."""
     global s
-    inner_w = Config.UI_WIDTH - 4
     vol_pct = s.state.volume  # already int 0-100
     pct_text = f"{vol_pct}%"
     start_w = s.state._start_time_w or 0
     end_w = s.state._end_time_w or 0
     vol_icon = f" {icon(_volume_icon(vol_pct))} "
-    bar_w = inner_w - start_w - 1 - 1 - end_w
+    bar_w = Config.INNER_W - start_w - 1 - 1 - end_w
     bar = volume_bar(vol_pct, max(0, bar_w))
     icon_w = max(start_w - 1, 0)
     return row(
