@@ -730,6 +730,59 @@ def _calc_track_num_width(track_count: int) -> int:
     return count_digits + 3 + count_digits  # "X / Y" format
 
 
+def _artist_row_slots(artist: str, shuffle: str, loop: str):
+    """Build artist row slots: label (7) + artist (flex) + shuffle/loop (dynamic).
+
+    Shuffle: icon + " shuf" when ON, hidden when OFF
+    Loop: icon + " loop" when ON (Track=🔂, Playlist=🔁), hidden when OFF
+    """
+    lw, gap = 7, 1
+
+    # Build shuffle/loop slot on the right
+    sl_parts = []
+    sl_width = 0
+
+    # Shuffle: show when ON (icon + " shuf")
+    if shuffle == "true":
+        shuffle_icon = icon("shuffle")
+        # "s" is key hint, "huf" is dimmed
+        shuffle_text = f"{colorize('s', Theme.KEY_HINT)}{colorize('huf', Theme.DIM)}"
+        sl_parts.append(f"{shuffle_icon} {shuffle_text}")
+        sl_width += visible_width(shuffle_icon) + 1 + 4  # icon + space + " shuf"
+
+    # Loop: show when ON (icon + " loop")
+    if loop in ("Track", "Playlist"):
+        loop_icon = icon("repeat-one") if loop == "Track" else icon("repeat")
+        # "l" is key hint, "oop" is dimmed
+        loop_text = f"{colorize('l', Theme.KEY_HINT)}{colorize('oop', Theme.DIM)}"
+        sl_parts.append(f"{loop_icon} {loop_text}")
+        sl_width += visible_width(loop_icon) + 1 + 4  # icon + space + " loop"
+
+    # Total width for shuffle/loop slot
+    sl_slot_w = sl_width if sl_parts else 0
+
+    # Artist name width: inner - label - gap - shuffle/loop - gap
+    if sl_parts:
+        aw = Config.INNER_W - lw - gap - gap - sl_slot_w - gap
+    else:
+        aw = Config.INNER_W - lw - gap
+
+    # Truncate artist name if needed
+    artist_text = truncate(artist, aw) if aw > 0 else ""
+
+    label_colored = colorize(f"{'Artist:':>{lw}}", Theme.DIM)
+
+    slots = [
+        (label_colored, lw, ">"),
+        (artist_text, aw, "<"),
+    ]
+    if sl_parts:
+        sl_content = " ".join(sl_parts)
+        slots.append((sl_content, sl_slot_w, ">"))
+
+    return slots
+
+
 def _track_row_slots(title: str, track_number: str, track_count: int):
     """Build track row slots: label (7) + title (flex) + track num (dynamic).
 
@@ -792,8 +845,14 @@ def track_row():
 
 
 def artist_row():
+    """Artist row: label + artist name + shuffle/loop indicators."""
     global s
-    return _info_row("Artist:", s.state.artist)
+    slots = _artist_row_slots(
+        s.state.artist,
+        s.state.shuffle,
+        s.state.loop,
+    )
+    return row(*slots)
 
 
 def progress_row():
@@ -1108,13 +1167,19 @@ def handle_key(key: str, seq: str = "") -> None:
     elif key in {"p", "P"}:
         run_playerctl_async("previous")
     elif key in {"s", "S"}:
+        # Optimistic update: toggle shuffle
+        s.state.shuffle = "false" if s.state.shuffle == "true" else "true"
         run_playerctl_async("shuffle", "Toggle")
     elif key in {"l", "L"}:
+        # Optimistic update: cycle loop
         if s.state.loop == "None":
+            s.state.loop = "Track"
             run_playerctl_async("loop", "Track")
         elif s.state.loop == "Track":
+            s.state.loop = "Playlist"
             run_playerctl_async("loop", "Playlist")
         else:
+            s.state.loop = "None"
             run_playerctl_async("loop", "None")
     elif key in {"m", "M"}:
         # Mute/unmute (volume is int 0-100)
