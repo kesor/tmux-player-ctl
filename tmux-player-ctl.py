@@ -1143,9 +1143,8 @@ def volume_bar(volume: int, width: int) -> str:
                 # Red zone
                 result.append(f"{Theme.VOL_HIGH}█")
         else:
-            # Empty: reset all, then set dimmed FG and BG using theme color
-            empty_rgb = _color_rgb(Theme.VOL_EMPTY)
-            result.append(f"\033[0m\033[38;2;{empty_rgb}m\033[48;2;{empty_rgb}m░")
+            # Empty: reset all, then set dark FG and BG
+            result.append(f"\033[0m\033[38;2;17;17;27m\033[48;2;17;17;27m░")
     
     return "".join(result) + Theme.RESET
 
