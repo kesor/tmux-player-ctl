@@ -683,24 +683,17 @@ def _format_player_name(player: str) -> str:
 def header_row() -> str:
     """"Header row with status, player name, and switch."""
     global s
-    status_w = 20
-    switch_w = 9
-    inner_w = Config.INNER_W  # Full content width = 68
 
     status_icon = icon(_status_icon(s.state.status))
     status_text = f"{status_icon} {s.state.status.lower()}"
+    status_w = visible_width(status_text) + 1
 
     player_name = _format_player_name(s.state.player)
     player_name_w = visible_width(player_name)
     
-    # Switch
     has_switch = len(s.available_players) > 1
-    switch_text = f"{icon('tab')} switch" if has_switch else ""
-    
-    # Calculate max name width so total fits: status + gap + name + gap + switch = inner_w
-    # Use status_w and switch_w (fixed) for consistent layout
-    actual_switch_w = switch_w if has_switch else 0
-    max_name_visible = inner_w - status_w - actual_switch_w - 2
+    switch_w = 9 if has_switch else 0
+    max_name_visible = Config.INNER_W - status_w - switch_w - 2
     
     if player_name_w > max_name_visible:
         # Truncate to fit, then adjust if we overshoot due to CJK boundary
@@ -708,17 +701,13 @@ def header_row() -> str:
         player_name_w = visible_width(player_name)
         # CJK boundary adds +2, so if we're over, truncate more
         if player_name_w > max_name_visible:
-            player_name = truncate(player_name, max_name_visible - 2)
+            player_name = truncate(player_name, max_name_visible - 1)
             player_name_w = visible_width(player_name)
     
-    # Remaining space for player name
-    # row() adds 1 space between adjacent slots
-    # With switch: status(20) + space(1) + player + space(1) + switch(9) = inner_w(68)
-    # Without switch: status(20) + space(1) + player = inner_w(68)
     if has_switch:
-        player_slot_w = inner_w - status_w - 1 - 1 - switch_w  # -2 for both gaps
+        player_slot_w = Config.INNER_W - status_w - 1 - 1 - switch_w  # -2 for both gaps
     else:
-        player_slot_w = inner_w - status_w - 1
+        player_slot_w = Config.INNER_W - status_w - 1
     
     # Center player name in its slot
     extra_padding = (player_slot_w - player_name_w) // 2
@@ -747,19 +736,6 @@ def _info_row(label: str, value: str):
         (value_text, vw, "<"),
     )
 
-
-def _calc_track_num_width(track_count: int) -> int:
-    """Calculate the width needed for track number display.
-
-    Format: "X / Y" where X is track number and Y is total count.
-    Handles track counts up to 9999 tracks (4 digits).
-    """
-    if track_count <= 0:
-        return 0
-    # Width of the count portion: max of track number and track count digits
-    # plus 3 for " / " separator
-    count_digits = max(len(str(track_count)), 1)
-    return count_digits + 3 + count_digits  # "X / Y" format
 
 def _artist_row_slots(artist: str, shuffle: str, loop: str):
     """Build artist row slots: label (7) + artist (flex) + shuffle/loop indicators.
@@ -1047,7 +1023,6 @@ def visible_width(text: str) -> int:
     """
     plain = ANSI_PATTERN.sub("", text)
     width = 0
-    prev_was_combining = False
     for char in plain:
         cp = ord(char)
         # Variation selectors (U+FE00-U+FE0F) have zero width
