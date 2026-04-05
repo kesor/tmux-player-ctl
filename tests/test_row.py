@@ -227,6 +227,15 @@ class TestRow(unittest.TestCase):
         result = tpc.volume_bar(70, 10)  # 70% filled
         self.assertIn("░", result)  # Has empty blocks
 
+    def test_volume_bar_empty_section_uses_vol_empty(self):
+        """Empty section uses VOL_EMPTY theme color for both FG and BG."""
+        result = tpc.volume_bar(70, 10)  # 70% filled, 30% empty
+        import re
+        # Extract VOL_EMPTY RGB value from theme
+        vol_empty_rgb = tpc._color_rgb(tpc.Theme.VOL_EMPTY)
+        # The empty section should have BG set to VOL_EMPTY
+        self.assertIn(f"\033[48;2;{vol_empty_rgb}m", result)
+
     def test_volume_bar_resets_color(self):
         """Volume bar ends with color reset."""
         result = tpc.volume_bar(50, 10)
