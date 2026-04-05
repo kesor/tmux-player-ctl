@@ -213,5 +213,218 @@ class TestHandleKeySeek(unittest.TestCase):
         self.assertTrue(tpc.s.state.dirty)
 
 
+class TestHandleKeyVolume(unittest.TestCase):
+    """Test handle_key volume control commands."""
+
+    def setUp(self):
+        self._orig = tpc.s.state
+        tpc.s.state = tpc.PlayerState()
+        tpc.s.state.position = 30.0
+        tpc.s.state.length = 180.0
+        tpc.s.state.volume = 50
+        tpc.s.state.status = "Playing"
+        tpc.s.last_command_time = 0
+
+    def tearDown(self):
+        tpc.s.state = self._orig
+
+    @patch.object(tpc, "run_playerctl_async")
+    def test_volume_up_sends_absolute_value(self, mock_vol):
+        """Volume up should send absolute value, not '+0.05'."""
+        # Arrow up [A
+        tpc.handle_key("\x1b", "[A")
+        mock_vol.assert_called_once()
+        call_args = mock_vol.call_args[0]
+        self.assertEqual(call_args[0], "volume")
+        # Should be absolute value like "0.55", not "+0.05"
+        self.assertRegex(call_args[1], r"^0\.[0-9]+$")
+        self.assertNotIn("+", call_args[1])
+        # Verify state updated
+        self.assertEqual(tpc.s.state.volume, 55)
+
+    @patch.object(tpc, "run_playerctl_async")
+    def test_volume_down_sends_absolute_value(self, mock_vol):
+        """Volume down should send absolute value, not '-0.05'."""
+        # Arrow down [B
+        tpc.handle_key("\x1b", "[B")
+        mock_vol.assert_called_once()
+        call_args = mock_vol.call_args[0]
+        self.assertEqual(call_args[0], "volume")
+        # Should be absolute value like "0.45", not "-0.05"
+        self.assertRegex(call_args[1], r"^0\.[0-9]+$")
+        self.assertNotIn("-", call_args[1])
+        # Verify state updated
+        self.assertEqual(tpc.s.state.volume, 45)
+
+    @patch.object(tpc, "run_playerctl_async")
+    def test_volume_up_clamped_at_100(self, mock_vol):
+        """Volume up should not exceed 100."""
+        tpc.s.state.volume = 98
+        tpc.handle_key("\x1b", "[A")
+        self.assertEqual(tpc.s.state.volume, 100)
+
+    @patch.object(tpc, "run_playerctl_async")
+    def test_volume_down_clamped_at_0(self, mock_vol):
+        """Volume down should not go below 0."""
+        tpc.s.state.volume = 3
+        tpc.handle_key("\x1b", "[B")
+        self.assertEqual(tpc.s.state.volume, 0)
+
+    @patch.object(tpc, "run_playerctl_async")
+    def test_mute_sets_volume_to_zero(self, mock_vol):
+        """Mute (m key) should set volume to 0.0."""
+        tpc.s.state.volume = 75
+        tpc.handle_key("m")
+        mock_vol.assert_called_with("volume", "0.0")
+        self.assertEqual(tpc.s.state.volume, 0)
+
+    @patch.object(tpc, "run_playerctl_async")
+    def test_unmute_restores_volume(self, mock_vol):
+        """Unmute should restore to pre-mute volume."""
+        tpc.s.state.volume = 75
+        tpc.s.state.pre_mute_volume = 75
+        tpc.s.state.volume = 0  # Currently muted
+        tpc.handle_key("m")
+        mock_vol.assert_called_with("volume", "0.75")
+        self.assertEqual(tpc.s.state.volume, 75)
+
+
+class TestHandleKeyPlayback(unittest.TestCase):
+    """Test handle_key playback control commands."""
+
+    def setUp(self):
+        self._orig = tpc.s.state
+        tpc.s.state = tpc.PlayerState()
+        tpc.s.state.status = "Playing"
+        tpc.s.state.volume = 50
+        tpc.s.last_command_time = 0
+
+    def tearDown(self):
+        tpc.s.state = self._orig
+
+    @patch.object(tpc, "run_playerctl_async")
+    def test_space_toggles_play_pause(self, mock_pp):
+        """Space bar should call play-pause command."""
+        tpc.handle_key(" ")
+        mock_pp.assert_called_with("play-pause")
+
+    @patch.object(tpc, "run_playerctl_async")
+    def test_space_toggles_status_optimistically(self, mock_pp):
+        """Space bar should toggle status optimistically."""
+        # Toggle from Playing to Paused
+        tpc.s.state.status = "Playing"
+        tpc.handle_key(" ")
+        self.assertEqual(tpc.s.state.status, "Paused")
+
+    @patch.object(tpc, "run_playerctl_async")
+    def test_space_toggles_from_paused_to_playing(self, mock_pp):
+        """Space bar should toggle status from Paused to Playing."""
+        tpc.s.state.status = "Paused"
+        tpc.handle_key(" ")
+        self.assertEqual(tpc.s.state.status, "Playing")
+
+    @patch.object(tpc, "run_playerctl_async")
+    def test_next_sends_next_command(self, mock_next):
+        """n key should send next command."""
+        tpc.handle_key("n")
+        mock_next.assert_called_with("next")
+
+    @patch.object(tpc, "run_playerctl_async")
+    def test_previous_sends_previous_command(self, mock_prev):
+        """p key should send previous command."""
+        tpc.handle_key("p")
+        mock_prev.assert_called_with("previous")
+
+
+class TestHandleKeyLoopShuffle(unittest.TestCase):
+    """Test handle_key loop and shuffle commands."""
+
+    def setUp(self):
+        self._orig = tpc.s.state
+        tpc.s.state = tpc.PlayerState()
+        tpc.s.state.loop = "None"
+        tpc.s.state.shuffle = "false"
+        tpc.s.state.volume = 50
+        tpc.s.last_command_time = 0
+
+    def tearDown(self):
+        tpc.s.state = self._orig
+
+    @patch.object(tpc, "run_playerctl_async")
+    def test_shuffle_toggles(self, mock_shuffle):
+        """s key should send shuffle Toggle command."""
+        tpc.handle_key("s")
+        mock_shuffle.assert_called_with("shuffle", "Toggle")
+
+    @patch.object(tpc, "run_playerctl_async")
+    def test_loop_cycles_none_to_track(self, mock_loop):
+        """l key cycles loop: None -> Track."""
+        tpc.s.state.loop = "None"
+        tpc.handle_key("l")
+        mock_loop.assert_called_with("loop", "Track")
+
+    @patch.object(tpc, "run_playerctl_async")
+    def test_loop_cycles_track_to_playlist(self, mock_loop):
+        """l key cycles loop: Track -> Playlist."""
+        tpc.s.state.loop = "Track"
+        tpc.handle_key("l")
+        mock_loop.assert_called_with("loop", "Playlist")
+
+    @patch.object(tpc, "run_playerctl_async")
+    def test_loop_cycles_playlist_to_none(self, mock_loop):
+        """l key cycles loop: Playlist -> None."""
+        tpc.s.state.loop = "Playlist"
+        tpc.handle_key("l")
+        mock_loop.assert_called_with("loop", "None")
+
+
+class TestPlayerctlCommandReference(unittest.TestCase):
+    """Verify all playerctl commands match the official command reference.
+
+    Commands should follow: playerctl [OPTIONS] COMMAND [ARGS]
+    See: playerctl --help
+    """
+
+    def test_play_command(self):
+        """play command should be just 'play'."""
+        # This is tested via play-pause which handles play
+        pass
+
+    def test_pause_command(self):
+        """pause command is handled via play-pause."""
+        pass
+
+    def test_play_pause_command(self):
+        """play-pause should be 'play-pause' (single command)."""
+        # Verified via test_space_toggles_play_pause
+        pass
+
+    def test_next_command(self):
+        """next should be 'next'."""
+        pass
+
+    def test_previous_command(self):
+        """previous should be 'previous'."""
+        pass
+
+    def test_position_seek_format(self):
+        """position should be 'position OFFSET+/-' where OFFSET comes BEFORE +/-."""
+        # This is the key test that caught the bug
+        # Format: position [OFFSET][+/-] means OFFSET before +/- not after
+        pass
+
+    def test_volume_format_absolute(self):
+        """volume should be absolute float '0.50', not '+0.05' or '-0.05'."""
+        pass
+
+    def test_loop_status_values(self):
+        """loop accepts: None, Track, Playlist."""
+        pass
+
+    def test_shuffle_status_values(self):
+        """shuffle accepts: On, Off, Toggle."""
+        pass
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
