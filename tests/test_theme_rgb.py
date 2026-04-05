@@ -83,8 +83,8 @@ class TestAnsiHelpersExist(unittest.TestCase):
 
     def test_ansi_fg_bg_returns_correct_format(self):
         """Ansi.fg_bg should return FG+BG combined format."""
-        result = tpc.Ansi.fg_bg("166;227;161", "17;17;27")
-        self.assertEqual(result, "\033[38;2;166;227;161m\033[48;2;17;17;27m")
+        result = tpc.Ansi.fg_bg("166;227;161", "30;30;46")
+        self.assertEqual(result, "\033[38;2;166;227;161m\033[48;2;30;30;46m")
 
     def test_ansi_reset_works(self):
         """Ansi.RESET_ALL should be \\033[0m"""

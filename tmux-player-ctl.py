@@ -645,36 +645,36 @@ def parse_metadata(raw: str) -> dict:
 class Theme:
     """Catppuccin Mocha palette as RGB triplets (r;g;b format).
     
-    ANSI sequences are built at point of use via Ansi.fg() / Ansi.bg()
-    to allow flexible FG/BG combinations.
+    Colors follow the Catppuccin style guide for consistency.
+    ANSI sequences are built at point of use via Ansi.fg() / Ansi.bg().
     """
 
-    # Background as RGB triplet (e.g., "0;0;0" for black)
+    # Background as RGB triplet (e.g., "30;30;50" for dark)
     BG = os.environ.get("TPCTL_BG", "")
 
-    # Status colors
-    PLAYING = os.environ.get("TPCTL_PLAYING", "166;227;161")  # green
-    PAUSED = os.environ.get("TPCTL_PAUSED", "249;226;175")  # yellow
+    # Status colors - semantic (style guide)
+    PLAYING = os.environ.get("TPCTL_PLAYING", "166;227;161")  # green (success)
+    PAUSED = os.environ.get("TPCTL_PAUSED", "249;226;175")  # yellow (warning)
     STOPPED = os.environ.get("TPCTL_STOPPED", "108;112;134")  # overlay0
-    RECORDING = os.environ.get("TPCTL_RECORDING", "243;139;168")  # red
+    RECORDING = os.environ.get("TPCTL_RECORDING", "243;139;168")  # red (error)
 
-    # Key hints
-    KEY_HINT = os.environ.get("TPCTL_KEY_HINT", "137;180;250")  # blue
+    # Interactive elements - semantic (style guide)
+    KEY_HINT = os.environ.get("TPCTL_KEY_HINT", "89;180;250")  # blue (links)
 
-    # Borders & labels
+    # UI chrome - structural colors
     BORDER = os.environ.get("TPCTL_BORDER", "108;112;134")  # overlay0
-    DIM = os.environ.get("TPCTL_DIM", "108;112;134")  # overlay0
+    DIM = os.environ.get("TPCTL_DIM", "166;173;200")  # subtext0 (labels)
 
     # Progress bar
-    PROGRESS_FILL = os.environ.get("TPCTL_PROGRESS_FILL", "137;180;250")  # blue
+    PROGRESS_FILL = os.environ.get("TPCTL_PROGRESS_FILL", "89;180;250")  # blue
     PROGRESS_EMPTY = os.environ.get("TPCTL_PROGRESS_EMPTY", "108;112;134")  # overlay0
 
-    # Volume bar (VU meter gradient: green → yellow → red)
+    # Volume bar (VU meter: green → yellow → red)
     VOL_MUTED = os.environ.get("TPCTL_VOL_MUTED", "243;139;168")  # red
     VOL_LOW = os.environ.get("TPCTL_VOL_LOW", "166;227;161")  # green
     VOL_MED = os.environ.get("TPCTL_VOL_MED", "249;226;175")  # yellow
     VOL_HIGH = os.environ.get("TPCTL_VOL_HIGH", "243;139;168")  # red
-    VOL_EMPTY = os.environ.get("TPCTL_VOL_EMPTY", "17;17;27")  # dark base
+    VOL_EMPTY = os.environ.get("TPCTL_VOL_EMPTY", "30;30;46")  # surface0 (dark)
 
     # Reset: clears formatting, optionally reapplies background
     @classmethod
