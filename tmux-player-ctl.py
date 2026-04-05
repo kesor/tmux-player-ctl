@@ -828,11 +828,12 @@ def volume_row():
     pct_text = f"{vol_pct}%"
     start_w = s.state._start_time_w or 0
     end_w = s.state._end_time_w or 0
-    vol_icon = f" {icon(_volume_icon(vol_pct)):^2}"
+    vol_icon = f" {icon(_volume_icon(vol_pct))} "
     bar_w = inner_w - start_w - 1 - 1 - end_w
     bar = volume_bar(vol_pct, max(0, bar_w))
+    icon_w = max(start_w - 1, 0)
     return row(
-        (f"{vol_icon:^3}", max(start_w - 1, 0), "<"),
+        (pad_visible(vol_icon, icon_w, "^"), icon_w, "<"),
         (bar, max(0, bar_w), "^"),
         (pct_text, end_w, ">"),
     )
