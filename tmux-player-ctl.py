@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import unicodedata
 """
 tmux-player-ctl - A tmux popup controller for MPRIS media players via playerctl.
 
@@ -876,48 +877,79 @@ def move_cursor(row: int, col: int):
 ANSI_PATTERN = re.compile(r"\x1b\[[0-9;]*m")
 
 
+def pad_visible(text: str, width: int, align: str = "<") -> str:
+    """Pad text to visible width, accounting for wide characters (CJK, emoji)."""
+    vw = visible_width(text)
+    padding = max(0, width - vw)
+    if align == "<":
+        return text + " " * padding
+    elif align == ">":
+        return " " * padding + text
+    elif align == "^":
+        left = padding // 2
+        right = padding - left
+        return " " * left + text + " " * right
+    return text + " " * padding
+
+
 def row(*slots) -> str:
     """Build a content row from slots.
 
-    Each slot is (content, slot_width, alignment), but content must already
-    be padded to slot_width using f-string formatting.
+    Each slot is (content, slot_width, alignment). Content will be padded
+    to slot_width using visible character width (accounts for CJK/emoji).
     """
     valid_slots = [s for s in slots if s is not None]
 
     if not valid_slots:
         return "│ │"
 
-    content_str = " ".join(
-        f"{content:{align}{width}}" for content, width, align in valid_slots
-    )
+    # Build content with visible-width padding
+    parts = []
+    for content, width, align in valid_slots:
+        parts.append(pad_visible(content, width, align))
+    content_str = " ".join(parts)
 
     return f"{Theme.BORDER}│{Theme.RESET} {content_str} {Theme.BORDER}│{Theme.RESET}"
+
+
+def visible_width(text: str) -> int:
+    """Calculate display width of text, accounting for wide chars (CJK, emoji)."""
+    plain = ANSI_PATTERN.sub("", text)
+    width = 0
+    for char in plain:
+        w = unicodedata.east_asian_width(char)
+        width += 2 if w in ("F", "W") else 1  # Full-width or Wide = 2 columns
+    return width
 
 
 def truncate(text: str, width: int) -> str:
     """Truncate text to visible width, add ellipsis if needed."""
     text = text.replace("\n", " ").strip()
-    plain = ANSI_PATTERN.sub("", text)
-    if len(plain) > width:
-        # Build result keeping ANSI codes, truncating visible chars
-        result = ""
-        visible = 0
-        i = 0
-        while visible < width - 1 and i < len(text):
-            if text[i] == "\x1b":
-                # Copy entire ANSI sequence
-                end = text.find("m", i)
-                if end > i:
-                    result += text[i : end + 1]
-                    i = end + 1
-                else:
-                    i += 1
+    if visible_width(text) <= width:
+        return text
+    # Build result keeping ANSI codes, truncating visible chars
+    result = ""
+    visible = 0
+    i = 0
+    while visible < width - 1 and i < len(text):
+        if text[i] == "\x1b":
+            # Copy entire ANSI sequence
+            end = text.find("m", i)
+            if end > i:
+                result += text[i : end + 1]
+                i = end + 1
             else:
-                result += text[i]
-                visible += 1
                 i += 1
-        return result + "…"
-    return text
+        else:
+            char = text[i]
+            w = unicodedata.east_asian_width(char)
+            char_width = 2 if w in ("F", "W") else 1
+            if visible + char_width > width - 1:
+                break
+            result += char
+            visible += char_width
+            i += 1
+    return result + "…"
 
 
 def format_time(seconds: float) -> str:

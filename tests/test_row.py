@@ -1145,5 +1145,66 @@ class TestTrackRowRenderUI(unittest.TestCase):
         self.assertNotIn(" / ", visible)
 
 
+class TestWideCharacters(unittest.TestCase):
+    """Test CJK and wide character handling in truncate() and row()."""
+
+    def test_truncate_cjk_respects_visible_width(self):
+        """CJK characters should count as 2 visible columns, not 1."""
+        # 8 CJK chars = 16 visible columns
+        text = "日本語テスト"  # 6 CJK chars = 12 visible columns
+        result = tpc.truncate(text, 10)
+        # Should truncate because 12 visible > 10 visible
+        self.assertTrue(result.endswith("…"), f"Expected truncation, got: {repr(result)}")
+
+    def test_truncate_cjk_exact_width(self):
+        """CJK text exactly fitting visible width should not truncate."""
+        text = "日本語"  # 3 CJK chars = 6 visible columns
+        result = tpc.truncate(text, 6)
+        self.assertEqual(result, text)
+
+    def test_truncate_mixed_ascii_cjk(self):
+        """Mix of ASCII (1 col) and CJK (2 col) characters."""
+        text = "Hello日本"  # 5 + 2 = 7 visible columns
+        result = tpc.truncate(text, 5)
+        # Should truncate because 7 visible > 5 visible
+        self.assertTrue(result.endswith("…"), f"Expected truncation, got: {repr(result)}")
+
+    def test_row_with_wide_characters_keeps_border(self):
+        """Row with CJK content should keep borders at correct position."""
+        text = "日本語曲名"  # 6 visible columns (3 CJK chars)
+        result = tpc.row((tpc.truncate(text, 10), 10, "^"))
+        visible = strip_visible(result)
+        # Row should start with border
+        self.assertTrue(visible.startswith("│ "), f"Row should start with │: {repr(visible)}")
+        # Row should end with border
+        self.assertTrue(visible.rstrip().endswith(" │"), f"Row should end with │: {repr(visible)}")
+        # Content should be inside borders
+        self.assertEqual(visible.count("│"), 2, f"Expected 2 borders, got: {repr(visible)}")
+
+    def test_row_with_long_cjk_title_fits_in_slot(self):
+        """Long CJK title truncated should fit in its slot without pushing borders."""
+        # Very long CJK text (30+ columns visible)
+        text = "永久に回り続ける螺旋階段を登り続ける物語"  # ~20+ visible columns
+        truncated = tpc.truncate(text, 20)
+        result = tpc.row((truncated, 20, "^"), None, ("Artist", 10, "<"))
+        visible = strip_visible(result)
+        # Verify borders are at correct positions
+        self.assertTrue(visible.startswith("│ "), f"Should start with │: {repr(visible)}")
+        self.assertTrue(visible.rstrip().endswith(" │"), f"Should end with │: {repr(visible)}")
+        # Content should be present and truncated
+        self.assertIn("永久", visible)
+        self.assertIn("Artist", visible)
+
+    def test_row_cjk_with_color_preserves_borders(self):
+        """CJK text with ANSI colors should not break row formatting."""
+        text = "日本語タイトル"  # ~8 visible columns
+        colored = f"\x1b[92m{text}\x1b[0m"  # Green CJK text
+        truncated = tpc.truncate(colored, 20)
+        result = tpc.row((truncated, 20, "^"))
+        visible = strip_visible(result)
+        # Should have exactly 2 borders
+        self.assertEqual(visible.count("│"), 2, f"Expected 2 borders: {repr(visible)}")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
