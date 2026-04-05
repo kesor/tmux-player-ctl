@@ -406,15 +406,16 @@ def switch_player() -> Optional[subprocess.Popen]:
     s.current_player_idx = (s.current_player_idx + 1) % len(s.available_players)
     s.current_player = s.available_players[s.current_player_idx]
 
+    # Reset state so stale metadata from previous player doesn't linger
+    reset_state()
+    s.state.player = s.current_player
+
     s.meta_proc = start_metadata_follower()
 
     if s.meta_proc is None:
-        reset_state()
         return None
 
     result = run_playerctl("--format", METADATA_FORMAT, "metadata")
-    # Always set player name - update_state_from_metadata skips 'player' field
-    s.state.player = s.current_player
     if result:
         data = parse_metadata(result)
         update_state_from_metadata(data)
