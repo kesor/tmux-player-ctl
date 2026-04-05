@@ -149,5 +149,69 @@ class TestReadMetadataFromFollower(unittest.TestCase):
         self.assertEqual(tpc.s.state.artist, "Artist")
 
 
+class TestHandleKeySeek(unittest.TestCase):
+    """Test handle_key seek functionality."""
+
+    def setUp(self):
+        self._orig = tpc.s.state
+        tpc.s.state = tpc.PlayerState()
+        tpc.s.state.position = 30.0
+        tpc.s.state.length = 180.0
+        tpc.s.state.volume = 50
+        tpc.s.last_command_time = 0
+
+    def tearDown(self):
+        tpc.s.state = self._orig
+
+    @patch.object(tpc, "run_playerctl_async")
+    def test_seek_forward_sends_correct_format(self, mock_seek):
+        """Seek forward should send '10+' not '+10' (offset before +/-)."""
+        # Arrow right [C
+        tpc.handle_key("\x1b", "[C")
+        # Verify the position command format: "10+" not "+10"
+        mock_seek.assert_called_once()
+        call_args = mock_seek.call_args[0]
+        self.assertEqual(call_args[0], "position")
+        self.assertEqual(call_args[1], "10+")
+        # Verify optimistic update
+        self.assertEqual(tpc.s.state.position, 40.0)
+
+    @patch.object(tpc, "run_playerctl_async")
+    def test_seek_backward_sends_correct_format(self, mock_seek):
+        """Seek backward should send '10-' not '-10' (offset before +/-)."""
+        # Arrow left [D
+        tpc.handle_key("\x1b", "[D")
+        # Verify the position command format: "10-" not "-10"
+        mock_seek.assert_called_once()
+        call_args = mock_seek.call_args[0]
+        self.assertEqual(call_args[0], "position")
+        self.assertEqual(call_args[1], "10-")
+        # Verify optimistic update
+        self.assertEqual(tpc.s.state.position, 20.0)
+
+    @patch.object(tpc, "run_playerctl_async")
+    def test_seek_forward_clamped_at_length(self, mock_seek):
+        """Seek forward should not exceed track length."""
+        tpc.s.state.position = 175.0  # 5 seconds from end
+        tpc.handle_key("\x1b", "[C")
+        # Should clamp to length, not exceed it
+        self.assertEqual(tpc.s.state.position, 180.0)
+
+    @patch.object(tpc, "run_playerctl_async")
+    def test_seek_backward_clamped_at_zero(self, mock_seek):
+        """Seek backward should not go below 0."""
+        tpc.s.state.position = 5.0
+        tpc.handle_key("\x1b", "[D")
+        # Should clamp to 0, not go negative
+        self.assertEqual(tpc.s.state.position, 0.0)
+
+    @patch.object(tpc, "run_playerctl_async")
+    def test_seek_marks_state_dirty(self, mock_seek):
+        """Seek should mark state as dirty for re-render."""
+        tpc.s.state.dirty = False
+        tpc.handle_key("\x1b", "[C")
+        self.assertTrue(tpc.s.state.dirty)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
