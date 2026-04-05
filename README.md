@@ -1,26 +1,36 @@
-# tmux-player-ctl
+# `tmux-player-ctl`
 
-A minimal tmux popup controller for MPRIS media players via `playerctl`.
+A minimal tmux popup controller for [MPRIS](https://specifications.freedesktop.org/mpris-spec/) media players via `playerctl`.
 
 ![screenshot](./screenshot.png)
 
+## Features
+
+- **Real-time metadata** - background follower process watches for player changes instantly
+- **Full playback controls** - play/pause, previous, next, seek ±10s, volume ±5%, mute
+- **Loop & shuffle** - cycle loop mode (none → track → playlist), toggle shuffle
+- **Progress bar** - live position indicator with elapsed/total time
+- **Volume bar** - color-coded volume level (muted/low/med/high)
+- **Multi-player** - switch between MPRIS players with `Tab`
+- **Optimistic UI** - instant feedback on keypresses, rolls back if player rejects
+- **24-bit ANSI colors** - theming via environment variables
+- **Signal-safe** - clean exit on `SIGINT`/`SIGTERM`
+
 ## Requirements
 
-- **tmux** 3.2+ (for popup support)
-- **playerctl** (MPRIS2 command-line control)
-- **python3**
+- **tmux** 3.2+
+- **playerctl**
+- **python** 3.0+
 
 ## Quick Start
 
-1. Ensure `playerctl` works with your media player:
-   ```bash
-   playerctl status
-   ```
+```bash
+# Ensure playerctl works
+playerctl status
 
-2. Run the controller in a tmux popup:
-   ```bash
-   tmux display-popup -B -xC -yC -w72 -h12 -E "./tmux-player-ctl.py"
-   ```
+# Run in a tmux popup
+tmux display-popup -B -w72 -h12 -E "tmux-player-ctl.py"
+```
 
 ## Keybindings
 
@@ -33,90 +43,46 @@ A minimal tmux popup controller for MPRIS media players via `playerctl`.
 | `↑` / `↓` | Volume up/down 5% |
 | `s` | Toggle shuffle |
 | `l` | Cycle loop (none → track → playlist) |
-| `m` | Mute/unmute |
+| `m` | Mute/unmute (remembers previous volume) |
 | `Tab` | Switch between players |
 | `q` / `Esc` | Exit |
 
-## tmux Configuration
-
-Add to your `~/.tmux.conf`:
+## Configure `tmux`
 
 ```bash
-# Popup controller (binds to Alt-p)
-bind-key -n M-p display-popup -B -xC -yC -w72 -h12 -E "tmux-player-ctl"
-```
-
-Reload tmux config:
-```bash
-tmux source ~/.tmux.conf
-```
-
-Or use a fullscreen popup:
-
-```bash
-bind-key -n M-p display-popup -x0 -y0 -w100% -h100% -k -E "tmux-player-ctl"
+# Compact popup (72×12, centered)
+bind-key -n M-p display-popup -B -w72 -h12 -E "tmux-player-ctl"
 ```
 
 ## Theming
 
-Override colors via environment variables:
+All colors use ANSI 24-bit RGB sequences. Override via environment variables:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `TPCTL_PLAYING` | green | Playing status color |
-| `TPCTL_PAUSED` | yellow | Paused status color |
-| `TPCTL_STOPPED` | gray | Stopped status color |
+| `TPCTL_PLAYING` | green | Playing status |
+| `TPCTL_PAUSED` | yellow | Paused status |
+| `TPCTL_STOPPED` | gray | Stopped / no player |
 | `TPCTL_KEY_HINT` | blue | Key hints in toolbar |
-| `TPCTL_BORDER` | gray | Border color |
-| `TPCTL_DIM` | gray | Dim text color |
+| `TPCTL_BORDER` | gray | Box borders |
+| `TPCTL_DIM` | gray | Label text |
+| `TPCTL_ACCENT` | green | Accent color |
+| `TPCTL_ACCENT_ALT` | yellow | Alternate accent |
 | `TPCTL_PROGRESS_FILL` | blue | Progress bar filled |
 | `TPCTL_PROGRESS_EMPTY` | gray | Progress bar empty |
 | `TPCTL_VOL_MUTED` | red | Volume muted |
 | `TPCTL_VOL_LOW` | yellow | Volume low |
 | `TPCTL_VOL_MED` | green | Volume medium |
 | `TPCTL_VOL_HIGH` | green | Volume high |
-| `TPCTL_BG` | (none) | Background color (e.g., "0;0;0") |
+| `TPCTL_VOL_EMPTY` | gray | Volume bar empty |
+| `TPCTL_BG` | (none) | Background RGB |
 
-### Catppuccin Mocha Example
+## Architecture
 
-```bash
-export TPCTL_PLAYING="\033[38;2;166;227;161m"    # green
-export TPCTL_PAUSED="\033[38;2;249;226;175m"    # yellow
-export TPCTL_STOPPED="\033[38;2;108;112;134m"   # gray
-export TPCTL_KEY_HINT="\033[38;2;137;180;250m"  # blue
-export TPCTL_BORDER="\033[38;2;108;112;134m"    # gray
-export TPCTL_PROGRESS_FILL="\033[38;2;137;180;250m"
-export TPCTL_PROGRESS_EMPTY="\033[38;2;108;112;134m"
-```
-
-## Installation
-
-```bash
-# Clone the repo
-git clone https://github.com/yourusername/tmux-player-ctl.git
-cd tmux-player-ctl
-
-# Make executable
-chmod +x tmux-player-ctl.py
-
-# Copy to PATH (optional)
-cp tmux-player-ctl.py ~/bin/tmux-player-ctl
-```
-
-## Troubleshooting
-
-**Popup doesn't appear?**
-- Ensure tmux is 3.2+ (`tmux -V`)
-- Try without `-B` flag on older tmux versions
-
-**Position doesn't update?**
-- Some players (like Firefox) may not support position updates
-- Volume changes may not work on all players
-
-**Multiple players?**
-- Press `Tab` to cycle through available MPRIS players
-- The player name is shown in the header
-
-## License
-
-MIT
+- **`Config`** - UI constants (width, seek seconds, volume step, ANSI colors)
+- **`PlayerState`** - single track's metadata (status, title, artist, album, position, length, volume, loop, shuffle)
+- **`PlayerTracker`** - all live state: current player, player list, index, state, last command time
+- **`metadata.follower`** - background `playerctl metadata` subprocess
+- **`run_playerctl`** - synchronous `playerctl` calls
+- **`run_playerctl_async`** - fire-and-forget `playerctl` calls (no blocking)
+- **`handle_key`** - maps keypresses to `playerctl` commands with optimistic UI updates
