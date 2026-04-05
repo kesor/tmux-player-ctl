@@ -54,13 +54,15 @@ class TestArtistRowShuffleLoop(unittest.TestCase):
         # Should show shuffle icon
         self.assertIn("🔀", visible)
 
-    def test_shuffle_off_hides_icon(self):
+    def test_shuffle_off_no_icon(self):
         """When shuffle is off, shuffle icon should be hidden."""
         tpc.s.state.shuffle = "false"
         result = tpc.artist_row()
         visible = strip_visible(result)
-        # Should not show shuffle icon
+        # Should NOT show shuffle icon when OFF
         self.assertNotIn("🔀", visible)
+        # But should still show "shuf" text
+        self.assertIn("shuf", visible)
 
     def test_loop_track_shows_icon(self):
         """When loop is Track, loop track icon should be visible."""
@@ -78,14 +80,16 @@ class TestArtistRowShuffleLoop(unittest.TestCase):
         # Should show loop-playlist icon
         self.assertIn("🔁", visible)
 
-    def test_loop_none_hides_icon(self):
+    def test_loop_none_no_icon(self):
         """When loop is None, loop icon should be hidden."""
         tpc.s.state.loop = "None"
         result = tpc.artist_row()
         visible = strip_visible(result)
-        # Should not show any loop icon
+        # Should NOT show loop icon when OFF
         self.assertNotIn("🔂", visible)
         self.assertNotIn("🔁", visible)
+        # But should still show "loop" text
+        self.assertIn("loop", visible)
 
     def test_shuffle_on_with_loop_track(self):
         """When both shuffle on and loop Track, both icons should show."""
@@ -117,16 +121,20 @@ class TestArtistRowShuffleLoop(unittest.TestCase):
         self.assertEqual(tpc.visible_width(visible), 72,
             f"Artist row should be 72 visible chars: {repr(visible)}")
 
-    def test_both_off_hides_both(self):
-        """When both shuffle and loop are off, only artist should show."""
+    def test_both_off_shows_both_no_icons(self):
+        """When both shuffle and loop are off, both icons hidden, text shown."""
         tpc.s.state.shuffle = "false"
         tpc.s.state.loop = "None"
         result = tpc.artist_row()
         visible = strip_visible(result)
         self.assertIn("Test Artist", visible)
+        # Icons should NOT be shown when OFF
         self.assertNotIn("🔀", visible)
         self.assertNotIn("🔂", visible)
         self.assertNotIn("🔁", visible)
+        # Text should still be shown
+        self.assertIn("shuf", visible)
+        self.assertIn("loop", visible)
 
 
 class TestArtistRowKeyStyling(unittest.TestCase):

@@ -461,6 +461,9 @@ def switch_player() -> Optional[subprocess.Popen]:
     # Reset state so stale metadata from previous player doesn't linger
     reset_state()
     s.state.player = s.current_player
+    # Query shuffle and loop state (not in metadata follower)
+    s.state.shuffle = run_playerctl("shuffle").strip() or "false"
+    s.state.loop = run_playerctl("loop").strip() or "None"
 
     s.meta_proc = start_metadata_follower()
 
@@ -729,12 +732,11 @@ def _calc_track_num_width(track_count: int) -> int:
     count_digits = max(len(str(track_count)), 1)
     return count_digits + 3 + count_digits  # "X / Y" format
 
-
 def _artist_row_slots(artist: str, shuffle: str, loop: str):
-    """Build artist row slots: label (7) + artist (flex) + shuffle/loop (dynamic).
+    """Build artist row slots: label (7) + artist (flex) + shuffle/loop indicators.
 
-    Shuffle: icon + " shuf" when ON, hidden when OFF
-    Loop: icon + " loop" when ON (Track=🔂, Playlist=🔁), hidden when OFF
+    Shuffle: icon + " shuf" when ON, "shuf" when OFF (s highlighted, rest dimmed)
+    Loop: icon + " loop" when ON, "loop" when OFF (l highlighted, rest dimmed)
     """
     lw, gap = 7, 1
 
@@ -742,46 +744,46 @@ def _artist_row_slots(artist: str, shuffle: str, loop: str):
     sl_parts = []
     sl_width = 0
 
-    # Shuffle: show when ON (icon + " shuf")
+    # Shuffle: icon + "shuf" when ON, "shuf" when OFF (s highlighted, rest dimmed)
     if shuffle == "true":
         shuffle_icon = icon("shuffle")
-        # "s" is key hint, "huf" is dimmed
         shuffle_text = f"{colorize('s', Theme.KEY_HINT)}{colorize('huf', Theme.DIM)}"
         sl_parts.append(f"{shuffle_icon} {shuffle_text}")
-        sl_width += visible_width(shuffle_icon) + 1 + 4  # icon + space + " shuf"
+        sl_width += visible_width(shuffle_icon) + 1 + 5  # icon + space + "shuf"
+    else:
+        # OFF: "shuf" without icon (s highlighted, rest dimmed)
+        shuffle_text = f"{colorize('s', Theme.KEY_HINT)}{colorize('huf', Theme.DIM)}"
+        sl_parts.append(shuffle_text)
+        sl_width += 5  # "shuf"
 
-    # Loop: show when ON (icon + " loop")
+    # Loop: icon + "loop" when ON, "loop" when OFF (l highlighted, rest dimmed)
     if loop in ("Track", "Playlist"):
         loop_icon = icon("repeat-one") if loop == "Track" else icon("repeat")
-        # "l" is key hint, "oop" is dimmed
         loop_text = f"{colorize('l', Theme.KEY_HINT)}{colorize('oop', Theme.DIM)}"
         sl_parts.append(f"{loop_icon} {loop_text}")
-        sl_width += visible_width(loop_icon) + 1 + 4  # icon + space + " loop"
+        sl_width += visible_width(loop_icon) + 1 + 4  # icon + space + "loop"
+    elif loop == "None":
+        # OFF: "loop" without icon (l highlighted, rest dimmed)
+        loop_text = f"{colorize('l', Theme.KEY_HINT)}{colorize('oop', Theme.DIM)}"
+        sl_parts.append(loop_text)
+        sl_width += 4  # "loop"
 
     # Total width for shuffle/loop slot
-    sl_slot_w = sl_width if sl_parts else 0
+    sl_slot_w = sl_width
 
     # Artist name width: inner - label - gap - shuffle/loop - gap
-    if sl_parts:
-        aw = Config.INNER_W - lw - gap - gap - sl_slot_w - gap
-    else:
-        aw = Config.INNER_W - lw - gap
+    aw = Config.INNER_W - lw - gap - sl_slot_w - gap
 
     # Truncate artist name if needed
     artist_text = truncate(artist, aw) if aw > 0 else ""
-
     label_colored = colorize(f"{'Artist:':>{lw}}", Theme.DIM)
 
     slots = [
         (label_colored, lw, ">"),
         (artist_text, aw, "<"),
+        (" ".join(sl_parts), sl_slot_w, ">"),
     ]
-    if sl_parts:
-        sl_content = " ".join(sl_parts)
-        slots.append((sl_content, sl_slot_w, ">"))
-
     return slots
-
 
 def _track_row_slots(title: str, track_number: str, track_count: int):
     """Build track row slots: label (7) + title (flex) + track num (dynamic).
@@ -1322,6 +1324,12 @@ def main():
         if s.current_player:
             s.current_player_idx = s.available_players.index(s.current_player)
             s.state.player = s.current_player
+            # Query shuffle and loop state (not in metadata follower)
+            # Normalize shuffle: "Off"/"On" (Spotify) or "true"/"false" (MPRIS)
+            shuffle_val = run_playerctl("shuffle").strip().lower()
+            s.state.shuffle = "true" if shuffle_val in ("on", "true") else "false"
+            # Loop: "None", "Track", "Playlist" (capitalized in MPRIS)
+            s.state.loop = run_playerctl("loop").strip() or "None"
             s.state.dirty = True
         else:
             s.current_player_idx = -1
