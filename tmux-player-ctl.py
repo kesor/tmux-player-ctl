@@ -694,21 +694,27 @@ def header_row() -> str:
 
     player_name = _format_player_name(s.state.player)
     player_name_w = visible_width(player_name)
-    # Center player name in the full inner content width
+    
+    # Center player name in the FULL inner width
     inner_w = Config.INNER_W - 2
     player_center = (inner_w - player_name_w) // 2
-    # How much padding before player name to achieve centering?
-    # Player slot starts at position status_w + 1 (after status + gap)
-    player_left_pad = player_center - status_w - 1
-    # Truncate player name if needed to fit the remaining slot space
-    max_name_len = player_w - max(0, player_left_pad) - 1  # trailing space
-    if max_name_len > 0 and player_name_w > max_name_len:
-        player_name = truncate(player_name, max_name_len)
+    
+    # Player slot starts at position status_w + 1 (after status text + 1 gap)
+    # We want player name to be centered, so calculate extra padding needed
+    slot_start = status_w + 1
+    
+    if player_center > slot_start:
+        # Name can be centered, add padding to align
+        extra_padding = player_center - slot_start
+        player_name = " " * extra_padding + player_name
         player_name_w = visible_width(player_name)
-        # Recalculate centering
-        player_center = (inner_w - player_name_w) // 2
-        player_left_pad = player_center - status_w - 1
-    player_name_padded = " " * max(0, player_left_pad) + player_name + " "
+    
+    # Truncate if still too long for slot
+    if player_name_w > player_w:
+        player_name = truncate(player_name, player_w)
+        player_name_w = visible_width(player_name)
+    
+    player_name_padded = f" {player_name} "  # always have 1 space on each side
 
     if len(s.available_players) > 1:
         switch_text = f"{colorize(icon('tab'), Theme.KEY_HINT)} switch"
@@ -720,7 +726,6 @@ def header_row() -> str:
         (player_name_padded, player_w, "<"),
         (switch_text, switch_w, ">"),
     )
-
 
 def _info_row(label: str, value: str):
     """Info row: label (7) + value (remaining)."""
