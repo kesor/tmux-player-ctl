@@ -1,2 +1,4 @@
-*,cover
+*.cover
 .direnv
+AGENTS.md
+bugs.md
