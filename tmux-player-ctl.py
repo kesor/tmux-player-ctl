@@ -417,9 +417,14 @@ def _playerctl_subprocess(
     extra_args: Optional[List[str]] = None,
     timeout: float = 0.5,
     capture: bool = True,
+    player_override: Optional[str] = None,
 ) -> subprocess.CompletedProcess:
     """Spawn playerctl subprocess. All subprocess.run calls go through here."""
-    args = ["playerctl"] + player_args() + (list(extra_args) if extra_args else [])
+    # Use explicit player if provided, otherwise use current player
+    if player_override:
+        args = ["playerctl", "-p", player_override] + (list(extra_args) if extra_args else [])
+    else:
+        args = ["playerctl"] + player_args() + (list(extra_args) if extra_args else [])
     try:
         stdout = subprocess.PIPE if capture else subprocess.DEVNULL
         stderr = subprocess.PIPE if capture else subprocess.DEVNULL
@@ -1185,10 +1190,16 @@ def volume_bar(volume: int, width: int) -> str:
 
 
 def run_playerctl_async(*args) -> None:
-    """Fire-and-forget playerctl command. Does not block the main loop."""
+    """Fire-and-forget playerctl command. Does not block the main loop.
+
+    Snapshots the current player at submission time to prevent race conditions
+    if player switches while command is queued.
+    """
+    # Snapshot player name at submission time
+    target_player = s.current_player
 
     def _exec():
-        _playerctl_subprocess(list(args), timeout=0.3, capture=False)
+        _playerctl_subprocess(list(args), timeout=0.3, capture=False, player_override=target_player)
 
     _playerctl_pool.submit(_exec)
 
