@@ -986,6 +986,104 @@ def handle_key(key: str, seq: str = "") -> None:
 # ─────────────────────────────────────────────────────────────────────────────
 
 
+def enable_raw_mode(fd: int):
+    """Enable raw mode on fd. Returns old_settings or None if not a tty."""
+    if not os.isatty(fd):
+        return None
+    try:
+        import termios
+
+        old_settings = termios.tcgetattr(fd)
+        new_settings = termios.tcgetattr(fd)
+        new_settings[3] &= ~(termios.ICANON | termios.ECHO)
+        new_settings[6][termios.VMIN] = 0
+        new_settings[6][termios.VTIME] = 0
+        termios.tcsetattr(fd, termios.TCSADRAIN, new_settings)
+        return old_settings
+    except ImportError:
+        return None
+
+
+def disable_raw_mode(fd: int, old_settings) -> None:
+    """Restore terminal settings from enable_raw_mode."""
+    if old_settings is None:
+        return
+    try:
+        import termios
+
+        termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+    except ImportError:
+        pass
+
+
+def read_key(fd: int):
+    """Read a keypress from fd. Returns (key, seq) or None.
+
+    seq is populated for escape sequences (e.g., '[A' for arrow up).
+    Returns None if no input available.
+    """
+    r, _, _ = select.select([fd], [], [], 0.0)
+    if fd not in r:
+        return None
+    try:
+        c = os.read(fd, 1)
+        if not c:
+            return None
+    except OSError:
+        return None
+
+    ch = c.decode("utf-8", errors="replace")
+    if ch != "\x1b":
+        return (ch, "")
+
+    # Escape sequence
+    r, _, _ = select.select([fd], [], [], 0.02)
+    if fd not in r:
+        return (ch, "")
+    try:
+        c2 = os.read(fd, 1)
+        if not c2:
+            return (ch, "")
+    except OSError:
+        return (ch, "")
+
+    ch2 = c2.decode("utf-8", errors="replace")
+    if ch2 != "[":
+        return (ch, ch2)
+
+    r, _, _ = select.select([fd], [], [], 0.1)
+    if fd not in r:
+        return (ch, ch2)
+    try:
+        c3 = os.read(fd, 1)
+        if not c3:
+            return (ch, ch2)
+    except OSError:
+        return (ch, ch2)
+
+    ch3 = c3.decode("utf-8", errors="replace")
+    return (ch, ch2 + ch3)
+
+
+def read_metadata_from_follower(raw: str) -> None:
+    """Parse and apply metadata from a raw follower data chunk.
+
+    Handles partial blocks (playerctl only sends non-empty fields).
+    """
+    parts = raw.split("\n@")
+    if not parts:
+        return
+    # parts[0] is empty (before leading \n) or '@0@val' (without leading \n)
+    # Normalize: prepend '' so parsing is uniform
+    if parts[0] != "":
+        parts = [""] + parts
+    # Process all fields at once (may be < 39)
+    block = "@" + "\n@".join(parts[1:])
+    parsed = parse_metadata(block)
+    if parsed:
+        update_state_from_metadata(parsed)
+
+
 def main():
     global s
 
@@ -1018,22 +1116,9 @@ def main():
 
         stdin_fd = None
         old_settings = None
-        is_tty = False
         if os.isatty(sys.stdin.fileno()):
             stdin_fd = sys.stdin.fileno()
-            is_tty = True
-            try:
-                import termios
-
-                old_settings = termios.tcgetattr(stdin_fd)
-                new_settings = termios.tcgetattr(stdin_fd)
-                new_settings[3] &= ~(termios.ICANON | termios.ECHO)
-                new_settings[6][termios.VMIN] = 0
-                new_settings[6][termios.VTIME] = 0
-                termios.tcsetattr(stdin_fd, termios.TCSADRAIN, new_settings)
-            except ImportError:
-                is_tty = False
-                stdin_fd = None
+            old_settings = enable_raw_mode(stdin_fd)
 
         def build_select_list():
             fds = []
@@ -1051,24 +1136,11 @@ def main():
             readable, _, _ = select.select(fds, [], [], 0.5)
 
             if s.meta_proc and s.meta_proc.stdout in readable:
-                # Read metadata - METADATA_FORMAT has 39 fields joined by \n
                 try:
                     data = os.read(s.meta_proc.stdout.fileno(), 4096)
                     if data:
                         decoded = data.decode("utf-8", errors="replace")
-                        # Split on field boundary \n@N@ to handle embedded newlines
-                        parts = decoded.split("\n@")
-                        # parts[0] may be empty (leading \n); skip it
-                        # Process complete blocks of 39 fields each
-                        offset = 0 if parts[0] != "" else 1
-                        for start in range(offset, len(parts), 39):
-                            chunk = parts[start : start + 39]
-                            if len(chunk) == 39:
-                                # Reconstruct prefixed format: \n@0@...\n@38@...
-                                block = "@" + "\n@".join(chunk)
-                                parsed = parse_metadata(block)
-                                if parsed:
-                                    update_state_from_metadata(parsed)
+                        read_metadata_from_follower(decoded)
                 except OSError:
                     pass
 
@@ -1078,49 +1150,20 @@ def main():
                     s.meta_proc = start_metadata_follower() if s.current_player else None
 
             if stdin_fd is not None and stdin_fd in readable:
-                try:
-                    c = os.read(stdin_fd, 1)
-                    if not c:
-                        continue
-                    ch = c.decode("utf-8", errors="replace")
-
-                    if ch == "\t":
-                        switch_player()
-                    elif ch == "\x1b":
-                        r, _, _ = select.select([stdin_fd], [], [], 0.02)
-                        if stdin_fd in r:
-                            c2 = os.read(stdin_fd, 1)
-                            if c2:
-                                ch2 = c2.decode("utf-8", errors="replace")
-                                if ch2 == "[":
-                                    r2, _, _ = select.select([stdin_fd], [], [], 0.1)
-                                    if stdin_fd in r2:
-                                        c3 = os.read(stdin_fd, 1)
-                                        if c3:
-                                            ch3 = c3.decode("utf-8", errors="replace")
-                                            handle_key(ch, ch2 + ch3)
-                                        else:
-                                            handle_key(ch, "")
-                                else:
-                                    handle_key(ch, ch2)
-                        else:
-                            handle_key(ch, "")
-                    else:
-                        handle_key(ch, "")
-                except OSError:
-                    pass
+                result = read_key(stdin_fd)
+                if result is None:
+                    continue
+                ch, seq = result
+                if ch == "\t":
+                    switch_player()
+                else:
+                    handle_key(ch, seq)
 
             if s.state.dirty:
                 render_ui()
 
     finally:
-        if is_tty and old_settings:
-            try:
-                import termios
-
-                termios.tcsetattr(stdin_fd, termios.TCSADRAIN, old_settings)
-            except (ImportError, OSError):
-                pass
+        disable_raw_mode(stdin_fd, old_settings)
         sys.stdout.write("\033[?25h")
         sys.stdout.write("\033[49m")  # Reset background
         sys.stdout.write("\033[0m")  # Reset all attributes
