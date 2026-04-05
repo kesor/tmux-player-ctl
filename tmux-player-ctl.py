@@ -1007,11 +1007,11 @@ def handle_key(key: str, seq: str = "") -> None:
         elif seq == "[C":
             # Seek forward: optimistic update
             s.state.position = min(s.state.length, s.state.position + Config.SEEK_SECONDS)
-            run_playerctl_async("position", f"+{Config.SEEK_SECONDS}")
+            run_playerctl_async("position", f"{Config.SEEK_SECONDS}+")
         elif seq == "[D":
             # Seek backward: optimistic update
             s.state.position = max(0, s.state.position - Config.SEEK_SECONDS)
-            run_playerctl_async("position", f"-{Config.SEEK_SECONDS}")
+            run_playerctl_async("position", f"{Config.SEEK_SECONDS}-")
         else:
             return
         s.state.dirty = True
