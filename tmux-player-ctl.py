@@ -1100,56 +1100,50 @@ def volume_bar(volume: int, width: int) -> str:
     """Build VU-meter style volume bar with dithered color gradient.
     
     Zones: green (0-50%), yellow (50-80%), red (80-100%)
-    Transitions use half-block characters (░▒▓█) with FG/BG color mixing.
+    Transitions use half-block characters (▒▓█) with FG/BG color mixing.
+    Empty section uses dimmed color for both FG and BG.
     """
     if volume == 0:
-        return f"{Theme.VOL_EMPTY}{'░' * width}{Theme.RESET}"
+        # Muted: dimmed FG and BG
+        return f"\033[38;2;{_color_rgb(Theme.VOL_EMPTY)}m\033[48;2;{_color_rgb(Theme.VOL_EMPTY)}m{'░' * width}{Theme.RESET}"
     
     filled = min(int(volume * width // 100), width)
     
-    # Zone boundaries (absolute positions)
-    green_end = int(width * 0.50)   # green zone: [0, green_end)
-    yellow_end = int(width * 0.80)  # yellow zone: [green_end, yellow_end)
-    # red zone: [yellow_end, width)
+    # Zone boundaries
+    green_zone_end = int(width * 0.50)   # exclusive
+    yellow_zone_end = int(width * 0.80)  # exclusive
     
-    # Block density: ░ (25%), ▒ (50%), ▓ (75%), █ (100%)
-    blocks = ["▒", "▓", "█"]  # start at 50% density for smoother transition
+    empty_rgb = _color_rgb(Theme.VOL_EMPTY)
     
     result = []
     for i in range(width):
         if i < filled:
-            # This position is filled
-            if i < green_end - 1:
-                # Deep in green zone - solid
-                result.append(f"{Theme.VOL_LOW}█")
-            elif i < green_end:
-                # At end of green - transition if yellow zone is filled
-                if filled > green_end:
-                    # Transitioning to yellow - use dither
-                    t = (i - (green_end - 1))
-                    block = blocks[min(t, len(blocks) - 1)]
+            # Determine zone and whether we're in transition
+            if i < green_zone_end:
+                # Green zone
+                if filled > green_zone_end and i == green_zone_end - 1:
+                    # At boundary, transitioning to yellow
+                    block = "▒"
                     fg_rgb = _color_rgb(Theme.VOL_MED)
                     bg_rgb = _color_rgb(Theme.VOL_LOW)
                     result.append(f"\033[38;2;{fg_rgb}m\033[48;2;{bg_rgb}m{block}")
                 else:
                     result.append(f"{Theme.VOL_LOW}█")
-            elif i < yellow_end - 1:
-                # Deep in yellow zone - solid
-                result.append(f"{Theme.VOL_MED}█")
-            elif i < yellow_end:
-                # At end of yellow - transition if red zone is filled
-                if filled > yellow_end:
-                    t = (i - (yellow_end - 1))
-                    block = blocks[min(t, len(blocks) - 1)]
+            elif i < yellow_zone_end:
+                # Yellow zone
+                if filled > yellow_zone_end and i == yellow_zone_end - 1:
+                    # At boundary, transitioning to red
+                    block = "▒"
                     fg_rgb = _color_rgb(Theme.VOL_HIGH)
                     bg_rgb = _color_rgb(Theme.VOL_MED)
                     result.append(f"\033[38;2;{fg_rgb}m\033[48;2;{bg_rgb}m{block}")
                 else:
                     result.append(f"{Theme.VOL_MED}█")
             else:
-                # Deep in red zone - solid
+                # Red zone
                 result.append(f"{Theme.VOL_HIGH}█")
         else:
+            # Empty: just dimmed FG, no BG
             result.append(f"{Theme.VOL_EMPTY}░")
     
     return "".join(result) + Theme.RESET
