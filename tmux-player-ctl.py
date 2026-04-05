@@ -643,7 +643,7 @@ def header_row() -> str:
     status_w = 12  # 2 icon + 1 space + 9 max "recording"
     switch_w = 9  # 2 icon + 1 space + 6 "switch"
     inner_w = Config.UI_WIDTH - 4
-    player_w = inner_w - status_w - switch_w + 2
+    player_w = inner_w - status_w - switch_w
 
     status_icon = icon(_status_icon(s.state.status))
     status_text = colorize(

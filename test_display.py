@@ -15,11 +15,11 @@ print("1234567890" * 10)
 tpc.s.state.position = 45
 tpc.s.state.length = 140
 tpc.s.state.volume = 89
-tpc.s.state.player = "中文中文中文中文中文中文中文中文中文中文中文中文中文中文spotifyd"
+tpc.s.state.player = "spotifyd中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文"
 tpc.s.state.status = "Playing"
-tpc.s.state.title = "Mission Select中文中文中文中文中文中文中文中文中文中文中文"
-tpc.s.state.artist = "Matthew S Burns中文中文中文中文中文中文中文中文中文中文中文"
-tpc.s.state.album = "Möbius Front '83 (Original Soundtrack)中文中文中文中文中文中文中文"
+tpc.s.state.title = "Mission Select中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文"
+tpc.s.state.artist = "Matthew S Burns中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文中文"
+tpc.s.state.album = "Möbius Front '83 (Original Soundtrack)中文中文中文中文中文中文中文中文中文中文中文中文"
 print(tpc.border_top())
 print(tpc.header_row())
 print(tpc.border_mid())
