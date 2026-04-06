@@ -19,37 +19,51 @@ class TestThemeValuesAreRGB(unittest.TestCase):
 
     def test_playing_is_rgb_not_ansi(self):
         """Theme.PLAYING should be r;g;b format, not \\033[38;2;...m"""
-        self.assertNotIn("\033", tpc.Theme.PLAYING, 
-            "Theme.PLAYING should be RGB, not ANSI sequence")
-        self.assertIn(";", tpc.Theme.PLAYING,
-            "Theme.PLAYING should contain semicolons for RGB")
+        self.assertNotIn(
+            "\033", tpc.Theme.PLAYING, "Theme.PLAYING should be RGB, not ANSI sequence"
+        )
+        self.assertIn(
+            ";", tpc.Theme.PLAYING, "Theme.PLAYING should contain semicolons for RGB"
+        )
         # Should be "R;G;B" format
         parts = tpc.Theme.PLAYING.split(";")
-        self.assertEqual(len(parts), 3, 
-            "Theme.PLAYING should have 3 parts: R;G;B")
+        self.assertEqual(len(parts), 3, "Theme.PLAYING should have 3 parts: R;G;B")
 
     def test_vol_low_is_rgb_not_ansi(self):
         """Theme.VOL_LOW should be r;g;b format"""
-        self.assertNotIn("\033", tpc.Theme.VOL_LOW,
-            "Theme.VOL_LOW should be RGB, not ANSI sequence")
+        self.assertNotIn(
+            "\033", tpc.Theme.VOL_LOW, "Theme.VOL_LOW should be RGB, not ANSI sequence"
+        )
         parts = tpc.Theme.VOL_LOW.split(";")
         self.assertEqual(len(parts), 3)
 
     def test_all_theme_colors_are_rgb(self):
         """All color Theme constants should be RGB triplets."""
         color_attrs = [
-            'PLAYING', 'PAUSED', 'STOPPED', 'RECORDING',
-            'KEY_HINT', 'BORDER', 'DIM',
-            'PROGRESS_FILL', 'PROGRESS_EMPTY',
-            'VOL_MUTED', 'VOL_LOW', 'VOL_MED', 'VOL_HIGH', 'VOL_EMPTY',
+            "PLAYING",
+            "PAUSED",
+            "STOPPED",
+            "RECORDING",
+            "KEY_HINT",
+            "BORDER",
+            "DIM",
+            "PROGRESS_FILL",
+            "PROGRESS_EMPTY",
+            "VOL_MUTED",
+            "VOL_LOW",
+            "VOL_MED",
+            "VOL_HIGH",
+            "VOL_EMPTY",
         ]
         for attr in color_attrs:
             val = getattr(tpc.Theme, attr)
-            self.assertNotIn("\033", val,
-                f"Theme.{attr} should be RGB, not ANSI: {repr(val)}")
+            self.assertNotIn(
+                "\033", val, f"Theme.{attr} should be RGB, not ANSI: {repr(val)}"
+            )
             parts = val.split(";")
-            self.assertEqual(len(parts), 3,
-                f"Theme.{attr} should be R;G;B: {repr(val)}")
+            self.assertEqual(
+                len(parts), 3, f"Theme.{attr} should be R;G;B: {repr(val)}"
+            )
 
 
 class TestAnsiHelpersExist(unittest.TestCase):
@@ -57,19 +71,19 @@ class TestAnsiHelpersExist(unittest.TestCase):
 
     def test_ansi_class_exists(self):
         """Should have Ansi class with static methods."""
-        self.assertTrue(hasattr(tpc, 'Ansi'), "Need Ansi class")
+        self.assertTrue(hasattr(tpc, "Ansi"), "Need Ansi class")
 
     def test_ansi_fg_method_exists(self):
         """Ansi.fg() static method should exist."""
-        self.assertTrue(hasattr(tpc.Ansi, 'fg'))
+        self.assertTrue(hasattr(tpc.Ansi, "fg"))
 
     def test_ansi_bg_method_exists(self):
         """Ansi.bg() static method should exist."""
-        self.assertTrue(hasattr(tpc.Ansi, 'bg'))
+        self.assertTrue(hasattr(tpc.Ansi, "bg"))
 
     def test_ansi_fg_bg_method_exists(self):
         """Ansi.fg_bg() static method should exist."""
-        self.assertTrue(hasattr(tpc.Ansi, 'fg_bg'))
+        self.assertTrue(hasattr(tpc.Ansi, "fg_bg"))
 
     def test_ansi_fg_returns_correct_format(self):
         """Ansi.fg should return \\033[38;2;RGB;m format."""
@@ -98,10 +112,13 @@ class TestColorizeWorks(unittest.TestCase):
         """colorize should wrap text in correct ANSI sequence."""
         result = tpc.colorize("test", tpc.Theme.PLAYING)
         # Should start with FG ANSI and end with RESET
-        self.assertTrue(result.startswith("\033[38;2;"),
-            f"Should start with FG ANSI: {repr(result)}")
-        self.assertTrue(result.endswith(f"test\033[0m"),
-            f"Should end with RESET: {repr(result)}")
+        self.assertTrue(
+            result.startswith("\033[38;2;"),
+            f"Should start with FG ANSI: {repr(result)}",
+        )
+        self.assertTrue(
+            result.endswith(f"test\033[0m"), f"Should end with RESET: {repr(result)}"
+        )
 
 
 class TestVolumeBarStillWorks(unittest.TestCase):
@@ -120,9 +137,10 @@ class TestVolumeBarStillWorks(unittest.TestCase):
     def test_volume_bar_has_minimal_sequences(self):
         """volume_bar should still emit minimal ANSI sequences."""
         result = tpc.volume_bar(50, 50)
-        sequences = re.findall(r'\x1b\[[0-9;]+m', result)
-        self.assertLessEqual(len(sequences), 10,
-            f"Too many sequences: {len(sequences)}")
+        sequences = re.findall(r"\x1b\[[0-9;]+m", result)
+        self.assertLessEqual(
+            len(sequences), 10, f"Too many sequences: {len(sequences)}"
+        )
 
 
 if __name__ == "__main__":

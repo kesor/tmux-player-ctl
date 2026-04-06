@@ -16,11 +16,10 @@ class TestVisibleWidthVariationSelectors(unittest.TestCase):
         """Variation selectors (U+FE00-U+FE0F) should have zero width."""
         # The pause icon includes U+FE0E (variation selector)
         pause_icon = "\u23f8\ufe0e"  # ⏸
-        
+
         # Should count as 1, not 2
         width = tpc.visible_width(pause_icon)
-        self.assertEqual(width, 1, 
-            f"Pause icon should be width 1, got {width}")
+        self.assertEqual(width, 1, f"Pause icon should be width 1, got {width}")
 
     def test_playing_icon_width(self):
         """Playing icon should be width 1."""
@@ -51,15 +50,16 @@ class TestVisibleWidthVariationSelectors(unittest.TestCase):
     def test_emoji_with_variation_selector(self):
         """Variation selectors after emoji should not add width."""
         # Baseball emoji with text variation selector
-        base = "\U000026BE"  # ⚾
-        with_var = "\U000026BE\uFE0E"  # ⚾︎
-        
+        base = "\U000026be"  # ⚾
+        with_var = "\U000026be\ufe0e"  # ⚾︎
+
         base_width = tpc.visible_width(base)
         var_width = tpc.visible_width(with_var)
-        
+
         # Should be the same width
-        self.assertEqual(var_width, base_width,
-            f"With var selector: {var_width}, base: {base_width}")
+        self.assertEqual(
+            var_width, base_width, f"With var selector: {var_width}, base: {base_width}"
+        )
 
 
 if __name__ == "__main__":

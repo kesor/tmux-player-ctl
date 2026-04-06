@@ -40,7 +40,9 @@ class TestHeaderDoubleRender(unittest.TestCase):
 
         border_count = visible.count("│")
         self.assertEqual(
-            border_count, 2, f"Header should have 2 borders, got {border_count}: {repr(visible)}"
+            border_count,
+            2,
+            f"Header should have 2 borders, got {border_count}: {repr(visible)}",
         )
 
     def test_empty_header_no_extra_border(self):
@@ -54,7 +56,9 @@ class TestHeaderDoubleRender(unittest.TestCase):
 
         border_count = visible.count("│")
         self.assertEqual(
-            border_count, 2, f"Header should have 2 borders, got {border_count}: {repr(visible)}"
+            border_count,
+            2,
+            f"Header should have 2 borders, got {border_count}: {repr(visible)}",
         )
 
     def test_headers_are_same_width(self):

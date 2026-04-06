@@ -51,8 +51,6 @@ class TestParseMetadata(unittest.TestCase):
             f"@{i}@{merged.get(f, '')}" for i, f in enumerate(tpc.METADATA_FIELDS)
         )
 
-
-
     def test_parse_basic_metadata(self):
         """Should extract player, status, title, artist, album."""
         raw = self._make_metadata(

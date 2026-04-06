@@ -592,7 +592,10 @@ class TestMetadataParse(unittest.TestCase):
     def test_metadata_parse_preserves_newlines_in_fields(self):
         """Fields with embedded newlines are parsed correctly."""
         raw = make_metadata(
-            player="spotify", status="Playing", title="Song", artist="Multi\nLine\nArtist"
+            player="spotify",
+            status="Playing",
+            title="Song",
+            artist="Multi\nLine\nArtist",
         )
         result = tpc.parse_metadata(raw)
         self.assertEqual(result["player"], "spotify")
@@ -875,7 +878,7 @@ class TestThemeResetWithBackground(unittest.TestCase):
             tpc2 = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(tpc2)
             # Should be just \033[0m
-            self.assertEqual(tpc2.Theme.reset(), "\033[0m")
+            self.assertEqual(tpc2.Ansi.reset(), "\033[0m")
         finally:
             if old_bg:
                 os.environ["TPCTL_BG"] = old_bg
@@ -894,7 +897,7 @@ class TestThemeResetWithBackground(unittest.TestCase):
             tpc3 = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(tpc3)
             # Should be \033[0m followed by background
-            self.assertEqual(tpc3.Theme.reset(), "\033[0m\033[48;2;30;30;50m")
+            self.assertEqual(tpc3.Ansi.reset(), "\033[0m\033[48;2;30;30;50m")
         finally:
             del os.environ["TPCTL_BG"]
 
@@ -920,8 +923,6 @@ class TestTrackRow(unittest.TestCase):
         tpc.s.state = self._orig_state
         tpc.s.available_players = self._orig_players
         tpc.Config.UI_WIDTH = self._orig_ui_width
-
-
 
     def test_track_row_has_label(self):
         """Track row should always have the 'Track:' label."""
@@ -983,7 +984,9 @@ class TestTrackRow(unittest.TestCase):
         # Title should be truncated (ends with ellipsis)
         visible = strip_visible(result)
         # The full long title should NOT be in the output
-        self.assertNotIn("This Is A Very Long Song Title That Should Be Truncated", visible)
+        self.assertNotIn(
+            "This Is A Very Long Song Title That Should Be Truncated", visible
+        )
 
     def test_track_row_handles_numeric_track_number(self):
         """Track row should handle numeric track numbers correctly."""
@@ -1145,7 +1148,9 @@ class TestWideCharacters(unittest.TestCase):
         text = "日本語テスト"  # 6 CJK chars = 12 visible columns
         result = tpc.truncate(text, 10)
         # Should truncate because 12 visible > 10 visible
-        self.assertTrue(result.endswith("…"), f"Expected truncation, got: {repr(result)}")
+        self.assertTrue(
+            result.endswith("…"), f"Expected truncation, got: {repr(result)}"
+        )
 
     def test_truncate_cjk_exact_width(self):
         """CJK text exactly fitting visible width should not truncate."""
@@ -1158,7 +1163,9 @@ class TestWideCharacters(unittest.TestCase):
         text = "Hello日本"  # 5 + 2 = 7 visible columns
         result = tpc.truncate(text, 5)
         # Should truncate because 7 visible > 5 visible
-        self.assertTrue(result.endswith("…"), f"Expected truncation, got: {repr(result)}")
+        self.assertTrue(
+            result.endswith("…"), f"Expected truncation, got: {repr(result)}"
+        )
 
     def test_row_with_wide_characters_keeps_border(self):
         """Row with CJK content should keep borders at correct position."""
@@ -1166,11 +1173,17 @@ class TestWideCharacters(unittest.TestCase):
         result = tpc.row((tpc.truncate(text, 10), 10, "^"))
         visible = strip_visible(result)
         # Row should start with border
-        self.assertTrue(visible.startswith("│ "), f"Row should start with │: {repr(visible)}")
+        self.assertTrue(
+            visible.startswith("│ "), f"Row should start with │: {repr(visible)}"
+        )
         # Row should end with border
-        self.assertTrue(visible.rstrip().endswith(" │"), f"Row should end with │: {repr(visible)}")
+        self.assertTrue(
+            visible.rstrip().endswith(" │"), f"Row should end with │: {repr(visible)}"
+        )
         # Content should be inside borders
-        self.assertEqual(visible.count("│"), 2, f"Expected 2 borders, got: {repr(visible)}")
+        self.assertEqual(
+            visible.count("│"), 2, f"Expected 2 borders, got: {repr(visible)}"
+        )
 
     def test_row_with_long_cjk_title_fits_in_slot(self):
         """Long CJK title truncated should fit in its slot without pushing borders."""
@@ -1180,8 +1193,12 @@ class TestWideCharacters(unittest.TestCase):
         result = tpc.row((truncated, 20, "^"), None, ("Artist", 10, "<"))
         visible = strip_visible(result)
         # Verify borders are at correct positions
-        self.assertTrue(visible.startswith("│ "), f"Should start with │: {repr(visible)}")
-        self.assertTrue(visible.rstrip().endswith(" │"), f"Should end with │: {repr(visible)}")
+        self.assertTrue(
+            visible.startswith("│ "), f"Should start with │: {repr(visible)}"
+        )
+        self.assertTrue(
+            visible.rstrip().endswith(" │"), f"Should end with │: {repr(visible)}"
+        )
         # Content should be present and truncated
         self.assertIn("永久", visible)
         self.assertIn("Artist", visible)

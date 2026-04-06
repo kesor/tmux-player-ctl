@@ -136,9 +136,7 @@ class TestReadMetadataFromFollower(unittest.TestCase):
     def test_handles_embedded_newlines_in_value(self):
         """Fields with embedded newlines should be preserved."""
         # artist has newline in value
-        raw = (
-            "\n@0@spotify\n@1@Playing\n@2@Test\n@3@Multi\nLine\nArtist"
-        )
+        raw = "\n@0@spotify\n@1@Playing\n@2@Test\n@3@Multi\nLine\nArtist"
         # Add second block to trigger extraction
         raw += "\n@0@spotify\n@1@Paused\n@2@Next"
         tpc.read_metadata_from_follower(raw)

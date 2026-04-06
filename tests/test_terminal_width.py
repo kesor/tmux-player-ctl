@@ -25,8 +25,10 @@ class TestTerminalWidth(unittest.TestCase):
 
     def test_detect_terminal_width_function_exists(self):
         """A function to detect terminal width should exist."""
-        self.assertTrue(hasattr(tpc, "detect_terminal_width"),
-            "detect_terminal_width function should exist")
+        self.assertTrue(
+            hasattr(tpc, "detect_terminal_width"),
+            "detect_terminal_width function should exist",
+        )
 
     def test_detect_terminal_width_returns_integer(self):
         """detect_terminal_width should return an integer."""

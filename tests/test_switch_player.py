@@ -38,10 +38,16 @@ class TestSwitchPlayerFailure(unittest.TestCase):
         result = tpc.switch_player()
 
         # Verify: current_player should be cleared
-        self.assertEqual(tpc.s.current_player, "",
-            "current_player should be cleared when no players available")
-        self.assertEqual(tpc.s.current_player_idx, -1,
-            "current_player_idx should be -1 when no players")
+        self.assertEqual(
+            tpc.s.current_player,
+            "",
+            "current_player should be cleared when no players available",
+        )
+        self.assertEqual(
+            tpc.s.current_player_idx,
+            -1,
+            "current_player_idx should be -1 when no players",
+        )
 
     @patch.object(tpc, "get_available_players")
     def test_switch_to_no_players_sets_status_no_player(self, mock_players):

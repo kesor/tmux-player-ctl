@@ -16,7 +16,7 @@ spec.loader.exec_module(tpc)
 
 class TestWindowResize(unittest.TestCase):
     """Window resize handling via SIGWINCH.
-    
+
     When terminal window is resized, we need to:
     1. Catch SIGWINCH signal
     2. Redetect terminal width
@@ -44,32 +44,32 @@ class TestWindowResize(unittest.TestCase):
         """Handling resize should update Config.UI_WIDTH."""
         tpc.Config.UI_WIDTH = 72
         tpc.Config.INNER_W = 68
-        
+
         # Simulate resize to smaller terminal
-        with patch.object(tpc, 'detect_terminal_width', return_value=50):
+        with patch.object(tpc, "detect_terminal_width", return_value=50):
             tpc.detect_and_apply_terminal_width()
-        
+
         self.assertEqual(tpc.Config.UI_WIDTH, 50)
         self.assertEqual(tpc.Config.INNER_W, 46)
 
     def test_resize_clamps_to_max(self):
         """Resize beyond 72 should clamp to 72."""
-        with patch.object(tpc, 'detect_terminal_width', return_value=100):
+        with patch.object(tpc, "detect_terminal_width", return_value=100):
             tpc.detect_and_apply_terminal_width()
-        
+
         self.assertEqual(tpc.Config.UI_WIDTH, 72)
 
     def test_resize_clamps_to_min(self):
         """Resize below 28 should clamp to 28."""
-        with patch.object(tpc, 'detect_terminal_width', return_value=20):
+        with patch.object(tpc, "detect_terminal_width", return_value=20):
             tpc.detect_and_apply_terminal_width()
-        
+
         self.assertEqual(tpc.Config.UI_WIDTH, 28)
 
 
 class TestMinWidthClamping(unittest.TestCase):
     """Bug #7: Missing minimum width clamping.
-    
+
     Config.UI_WIDTH = min(72, terminal_width) can yield 0 or negative
     Config.INNER_W, breaking math in progress_row(), volume_row(), and
     truncation. INNER_W should never go below 0 and UI_WIDTH should have
@@ -89,9 +89,9 @@ class TestMinWidthClamping(unittest.TestCase):
         # Reset for testing
         tpc.Config.UI_WIDTH = 72
         tpc.Config.INNER_W = 68
-        
+
         tpc.detect_and_apply_terminal_width()
-        
+
         # After clamping, UI_WIDTH should be at least 28
         self.assertGreaterEqual or self.fail
         # Check that INNER_W is at least 0
@@ -101,11 +101,11 @@ class TestMinWidthClamping(unittest.TestCase):
         """Zero terminal width should clamp to minimum UI_WIDTH."""
         tpc.Config.UI_WIDTH = 72
         tpc.Config.INNER_W = 68
-        
+
         # Simulate what would happen if detect_terminal_width returned 0
-        with patch.object(tpc, 'detect_terminal_width', return_value=0):
+        with patch.object(tpc, "detect_terminal_width", return_value=0):
             tpc.detect_and_apply_terminal_width()
-        
+
         # Should clamp to minimum of 28 (or some reasonable minimum)
         self.assertGreaterEqual(tpc.Config.UI_WIDTH, 28)
         self.assertGreaterEqual(tpc.Config.INNER_W, 0)
@@ -114,10 +114,10 @@ class TestMinWidthClamping(unittest.TestCase):
         """Negative terminal width should clamp to minimum UI_WIDTH."""
         tpc.Config.UI_WIDTH = 72
         tpc.Config.INNER_W = 68
-        
-        with patch.object(tpc, 'detect_terminal_width', return_value=-10):
+
+        with patch.object(tpc, "detect_terminal_width", return_value=-10):
             tpc.detect_and_apply_terminal_width()
-        
+
         self.assertGreaterEqual(tpc.Config.UI_WIDTH, 28)
         self.assertGreaterEqual(tpc.Config.INNER_W, 0)
 
@@ -127,14 +127,15 @@ class TestMinWidthClamping(unittest.TestCase):
             tpc.Config.UI_WIDTH = width
             tpc.detect_and_apply_terminal_width()
             self.assertGreaterEqual(
-                tpc.Config.INNER_W, 0,
-                f"INNER_W should not be negative for UI_WIDTH={width}"
+                tpc.Config.INNER_W,
+                0,
+                f"INNER_W should not be negative for UI_WIDTH={width}",
             )
 
 
 class TestZeroLengthStreams(unittest.TestCase):
     """Bug #11: Zero-length MPRIS streams.
-    
+
     Browsers (Firefox/YouTube) and live radio often report length = 0.0.
     Currently renders as 0:00 and a flat progress bar. format_time() and
     progress_row() should detect total <= 0 and display "Live" or "N/A"

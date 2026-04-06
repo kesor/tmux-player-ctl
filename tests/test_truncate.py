@@ -1,8 +1,9 @@
 """Test truncate function with CJK boundary handling."""
+
 import unittest
 import importlib.util
 
-spec = importlib.util.spec_from_file_location('tpc', '../tmux-player-ctl.py')
+spec = importlib.util.spec_from_file_location("tpc", "../tmux-player-ctl.py")
 tpc = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(tpc)
 
@@ -55,7 +56,7 @@ class TestHeaderRowWidth(unittest.TestCase):
         self.orig_state = tpc.s.state
         self.orig_players = tpc.s.available_players
         tpc.s.state = tpc.PlayerState()
-        tpc.s.available_players = ['test', 'other']
+        tpc.s.available_players = ["test", "other"]
 
     def tearDown(self):
         tpc.s.state = self.orig_state
@@ -63,42 +64,51 @@ class TestHeaderRowWidth(unittest.TestCase):
 
     def test_header_width_recording_long_cjk(self):
         """Header with recording status and long CJK player name has correct width."""
-        tpc.s.state.player = 'spotifyd旅ロ京青利セムレ弱改フヨス波府かばぼ意送でぼ調掲察たス日西重ケアナ住橋ユムミク順待ふかんぼ人奨貯鏡すびそ。'
-        tpc.s.state.status = 'recording'
-        
+        tpc.s.state.player = "spotifyd旅ロ京青利セムレ弱改フヨス波府かばぼ意送でぼ調掲察たス日西重ケアナ住橋ユムミク順待ふかんぼ人奨貯鏡すびそ。"
+        tpc.s.state.status = "recording"
+
         result = tpc.header_row()
-        clean = tpc.ANSI_PATTERN.sub('', result)
+        clean = tpc.ANSI_PATTERN.sub("", result)
         vw = tpc.visible_width(clean)
-        
-        self.assertEqual(vw, tpc.Config.UI_WIDTH, 
-            f"Header should be {tpc.Config.UI_WIDTH}, got {vw}. '{clean}'")
+
+        self.assertEqual(
+            vw,
+            tpc.Config.UI_WIDTH,
+            f"Header should be {tpc.Config.UI_WIDTH}, got {vw}. '{clean}'",
+        )
 
     def test_header_width_single_player(self):
         """Header with single player has correct width."""
-        tpc.s.available_players = ['test']
-        tpc.s.state.player = 'test'
-        tpc.s.state.status = 'playing'
-        
+        tpc.s.available_players = ["test"]
+        tpc.s.state.player = "test"
+        tpc.s.state.status = "playing"
+
         result = tpc.header_row()
-        clean = tpc.ANSI_PATTERN.sub('', result)
+        clean = tpc.ANSI_PATTERN.sub("", result)
         vw = tpc.visible_width(clean)
-        
-        self.assertEqual(vw, tpc.Config.UI_WIDTH,
-            f"Header should be {tpc.Config.UI_WIDTH}, got {vw}. '{clean}'")
+
+        self.assertEqual(
+            vw,
+            tpc.Config.UI_WIDTH,
+            f"Header should be {tpc.Config.UI_WIDTH}, got {vw}. '{clean}'",
+        )
 
     def test_header_width_empty(self):
         """Empty header has correct width."""
-        tpc.s.state.player = ''
-        tpc.s.state.status = ''
+        tpc.s.state.player = ""
+        tpc.s.state.status = ""
         tpc.s.available_players = []
-        
+
         result = tpc.header_row()
-        clean = tpc.ANSI_PATTERN.sub('', result)
+        clean = tpc.ANSI_PATTERN.sub("", result)
         vw = tpc.visible_width(clean)
-        
-        self.assertEqual(vw, tpc.Config.UI_WIDTH,
-            f"Header should be {tpc.Config.UI_WIDTH}, got {vw}. '{clean}'")
+
+        self.assertEqual(
+            vw,
+            tpc.Config.UI_WIDTH,
+            f"Header should be {tpc.Config.UI_WIDTH}, got {vw}. '{clean}'",
+        )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

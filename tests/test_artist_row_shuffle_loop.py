@@ -118,8 +118,11 @@ class TestArtistRowShuffleLoop(unittest.TestCase):
         """Artist row should have correct width (72 visible chars)."""
         result = tpc.artist_row()
         visible = strip_visible(result)
-        self.assertEqual(tpc.visible_width(visible), 72,
-            f"Artist row should be 72 visible chars: {repr(visible)}")
+        self.assertEqual(
+            tpc.visible_width(visible),
+            72,
+            f"Artist row should be 72 visible chars: {repr(visible)}",
+        )
 
     def test_both_off_shows_both_no_icons(self):
         """When both shuffle and loop are off, both icons hidden, text shown."""

@@ -23,45 +23,56 @@ class TestVolumeBarSequenceCount(unittest.TestCase):
     def test_full_volume_has_few_sequences(self):
         """Full volume (100%) should emit minimal ANSI sequences."""
         result = tpc.volume_bar(100, 50)
-        sequences = re.findall(r'\x1b\[[0-9;]+m', result)
+        sequences = re.findall(r"\x1b\[[0-9;]+m", result)
         # Optimized: 8 sequences max (green, yellow+BG, yellow, red+BG, red, reset)
         # Before optimization: 53 sequences
-        self.assertLessEqual(len(sequences), 8,
-            f"Too many ANSI sequences: {len(sequences)}. Should be <= 8.")
+        self.assertLessEqual(
+            len(sequences),
+            8,
+            f"Too many ANSI sequences: {len(sequences)}. Should be <= 8.",
+        )
 
     def test_half_volume_has_few_sequences(self):
         """Volume 50% should emit minimal ANSI sequences."""
         result = tpc.volume_bar(50, 50)
-        sequences = re.findall(r'\x1b\[[0-9;]+m', result)
+        sequences = re.findall(r"\x1b\[[0-9;]+m", result)
         # Optimized: green, yellow+BG, yellow, reset = ~4-5 sequences
         # Before optimization: 101 sequences
-        self.assertLessEqual(len(sequences), 6,
-            f"Too many ANSI sequences: {len(sequences)}. Should be <= 6.")
+        self.assertLessEqual(
+            len(sequences),
+            6,
+            f"Too many ANSI sequences: {len(sequences)}. Should be <= 6.",
+        )
 
     def test_low_volume_has_few_sequences(self):
         """Volume 25% (all green) should emit minimal ANSI sequences."""
         result = tpc.volume_bar(25, 50)
-        sequences = re.findall(r'\x1b\[[0-9;]+m', result)
+        sequences = re.findall(r"\x1b\[[0-9;]+m", result)
         # Optimized: green, empty+BG, reset = ~4 sequences
         # Before optimization: 127 sequences
-        self.assertLessEqual(len(sequences), 5,
-            f"Too many ANSI sequences: {len(sequences)}. Should be <= 5.")
+        self.assertLessEqual(
+            len(sequences),
+            5,
+            f"Too many ANSI sequences: {len(sequences)}. Should be <= 5.",
+        )
 
     def test_zero_volume_has_minimal_sequences(self):
         """Volume 0% should emit minimal sequences (FG + BG + reset = 3)."""
         result = tpc.volume_bar(0, 50)
-        sequences = re.findall(r'\x1b\[[0-9;]+m', result)
+        sequences = re.findall(r"\x1b\[[0-9;]+m", result)
         # 3 sequences: FG color, BG color, reset
-        self.assertEqual(len(sequences), 3,
-            f"Expected 3 sequences: {len(sequences)}")
+        self.assertEqual(len(sequences), 3, f"Expected 3 sequences: {len(sequences)}")
 
     def test_wide_bar_still_has_few_sequences(self):
         """Wide bar (68 chars) should still have few sequences."""
         result = tpc.volume_bar(65, 68)
-        sequences = re.findall(r'\x1b\[[0-9;]+m', result)
+        sequences = re.findall(r"\x1b\[[0-9;]+m", result)
         # Still much better than original ~118 sequences
-        self.assertLessEqual(len(sequences), 10,
-            f"Too many ANSI sequences: {len(sequences)}. Should be <= 10.")
+        self.assertLessEqual(
+            len(sequences),
+            10,
+            f"Too many ANSI sequences: {len(sequences)}. Should be <= 10.",
+        )
 
 
 class TestVolumeBarContent(unittest.TestCase):
@@ -90,7 +101,7 @@ class TestVolumeBarContent(unittest.TestCase):
         """Volume bar should be correct total width (without ANSI)."""
         result = tpc.volume_bar(50, 30)
         # Strip ANSI codes and check visible length
-        plain = re.sub(r'\x1b\[[0-9;]+m', '', result)
+        plain = re.sub(r"\x1b\[[0-9;]+m", "", result)
         self.assertEqual(len(plain), 30)
 
 
@@ -106,7 +117,7 @@ class TestVolumeBarAlignment(unittest.TestCase):
 
     def test_volume_bar_matches_progress_bar_width(self):
         """Volume bar and progress bar should have exactly the same width.
-        
+
         This ensures the bars start and end at the same columns,
         creating a clean visual alignment.
         """
@@ -124,9 +135,7 @@ class TestVolumeBarAlignment(unittest.TestCase):
 
         # Build progress bar
         progress_bar = tpc.progress_bar(
-            tpc.s.state.position,
-            tpc.s.state.length,
-            progress_bar_w
+            tpc.s.state.position, tpc.s.state.length, progress_bar_w
         )
         progress_bar_visible = tpc.visible_width(progress_bar)
 
@@ -136,7 +145,7 @@ class TestVolumeBarAlignment(unittest.TestCase):
         vol_icon = f" {tpc.icon(tpc._volume_icon(vol_pct))} "
         icon_w = tpc.visible_width(vol_icon)
         bar_w = tpc.Config.INNER_W - icon_w - 1 - 1 - len(pct_text)
-        
+
         # The row total needs to equal INNER_W
         # icon + gap + bar + gap + pct = INNER_W
         # bar_w should be adjusted so total matches
@@ -152,7 +161,7 @@ class TestVolumeBarAlignment(unittest.TestCase):
         self.assertEqual(
             progress_bar_visible,
             volume_bar_visible,
-            f"Progress bar width ({progress_bar_visible}) != volume bar width ({volume_bar_visible})"
+            f"Progress bar width ({progress_bar_visible}) != volume bar width ({volume_bar_visible})",
         )
         self.assertEqual(progress_bar_visible, progress_bar_w)
         self.assertEqual(volume_bar_visible, progress_bar_w)

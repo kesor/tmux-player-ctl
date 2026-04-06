@@ -76,7 +76,9 @@ class TestPlayerctlIntegration(unittest.TestCase):
         # Fields we expect to have data for when playing
         expected_fields = ["player", "status", "title"]
         for field in expected_fields:
-            self.assertIn(field, parsed, f"Field '{field}' should be in parsed metadata")
+            self.assertIn(
+                field, parsed, f"Field '{field}' should be in parsed metadata"
+            )
             # These should have non-empty values when a track is playing
             if field in ["title"] and not parsed.get(field):
                 # Title might be empty if no track loaded, that's ok

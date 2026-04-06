@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import unicodedata
+
 """
 tmux-player-ctl - A tmux popup controller for MPRIS media players via playerctl.
 
@@ -40,7 +41,9 @@ def detect_terminal_width() -> int:
         try:
             result = subprocess.run(
                 ["tmux", "display-message", "-p", "#{pane_width}"],
-                capture_output=True, text=True, timeout=1
+                capture_output=True,
+                text=True,
+                timeout=1,
             )
             if result.returncode == 0:
                 width = int(result.stdout.strip())
@@ -48,7 +51,7 @@ def detect_terminal_width() -> int:
                     return width
         except (ValueError, subprocess.TimeoutExpired, FileNotFoundError):
             pass
-    
+
     # Fallback to shutil
     return shutil.get_terminal_size().columns
 
@@ -94,9 +97,9 @@ ICONS = {
     "repeat": "\U0001f501\ufe0e",  # 🔁
     "repeat-one": "\U0001f502\ufe0e",  # 🔂
     # Tools
-    "seek": '←→',
-    "vol-change": '↑↓',
-    "toggle-play": '␣',
+    "seek": "←→",
+    "vol-change": "↑↓",
+    "toggle-play": "␣",
 }
 
 
@@ -115,48 +118,6 @@ VOL_ICONS = {
     (33, 65): "vol-med",
     (66, 100): "vol-high",
 }
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Color helpers
-# ─────────────────────────────────────────────────────────────────────────────
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# ANSI Helpers
-# ─────────────────────────────────────────────────────────────────────────────
-
-class Ansi:
-    """Pre-built ANSI escape sequences for common operations."""
-    
-    @staticmethod
-    def fg(rgb: str) -> str:
-        """Foreground color from RGB triplet (e.g., "166;227;161")."""
-        return f"\033[38;2;{rgb}m"
-    
-    @staticmethod
-    def bg(rgb: str) -> str:
-        """Background color from RGB triplet (e.g., "166;227;161")."""
-        return f"\033[48;2;{rgb}m"
-    
-    @staticmethod
-    def fg_bg(fg_rgb: str, bg_rgb: str) -> str:
-        """Combined FG + BG color from RGB triplets."""
-        return f"\033[38;2;{fg_rgb}m\033[48;2;{bg_rgb}m"
-    
-    RESET_ALL = "\033[0m"
-    
-    @classmethod
-    def reset(cls, bg_rgb: str = None) -> str:
-        """Reset with optional background re-application."""
-        if bg_rgb:
-            return f"\033[0m\033[48;2;{bg_rgb}m"
-        return cls.RESET_ALL
-
-
-def colorize(text: str, rgb: str) -> str:
-    """Wrap text in foreground color using RGB triplet."""
-    return f"{Ansi.fg(rgb)}{text}{Ansi.RESET_ALL}"
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -418,7 +379,9 @@ def get_available_players() -> List[str]:
     try:
         result = subprocess.run(
             ["playerctl", "--list-all"],
-            capture_output=True, text=True, timeout=1,
+            capture_output=True,
+            text=True,
+            timeout=1,
         )
         if result.returncode != 0:
             return []
@@ -464,13 +427,17 @@ def _playerctl_subprocess(
     """Spawn playerctl subprocess. All subprocess.run calls go through here."""
     # Use explicit player if provided, otherwise use current player
     if player_override:
-        args = ["playerctl", "-p", player_override] + (list(extra_args) if extra_args else [])
+        args = ["playerctl", "-p", player_override] + (
+            list(extra_args) if extra_args else []
+        )
     else:
         args = ["playerctl"] + player_args() + (list(extra_args) if extra_args else [])
     try:
         stdout = subprocess.PIPE if capture else subprocess.DEVNULL
         stderr = subprocess.PIPE if capture else subprocess.DEVNULL
-        return subprocess.run(args, stdout=stdout, stderr=stderr, text=True, timeout=timeout)
+        return subprocess.run(
+            args, stdout=stdout, stderr=stderr, text=True, timeout=timeout
+        )
     except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
         return subprocess.CompletedProcess(args, 1, "", "")
 
@@ -631,7 +598,9 @@ def parse_metadata(raw: str) -> dict:
             "language": get("language"),
             "lyrics": get("lyrics"),
             # Playback
-            "position": float(data["position"]) / 1_000_000 if data.get("position") else 0.0,
+            "position": float(data["position"]) / 1_000_000
+            if data.get("position")
+            else 0.0,
             "length": float(data["length"]) / 1_000_000 if data.get("length") else 0.0,
             "volume": _parse_volume(get("volume")),
             "loopStatus": get("loopStatus", "None"),
@@ -652,7 +621,7 @@ def parse_metadata(raw: str) -> dict:
 
 class Theme:
     """Catppuccin Mocha palette as RGB triplets (r;g;b format).
-    
+
     Colors follow the Catppuccin style guide for consistency.
     ANSI sequences are built at point of use via Ansi.fg() / Ansi.bg().
     """
@@ -684,17 +653,38 @@ class Theme:
     VOL_HIGH = os.environ.get("TPCTL_VOL_HIGH", "243;139;168")  # red
     VOL_EMPTY = os.environ.get("TPCTL_VOL_EMPTY", "30;30;46")  # surface0 (dark)
 
-    # Reset: clears formatting, optionally reapplies background
-    @classmethod
-    def reset(cls) -> str:
-        if cls.BG:
-            return f"\033[0m\033[48;2;{cls.BG}m"
-        return "\033[0m"
 
-    # Backwards compatibility: Theme.RESET as a string (lazy evaluated)
-    @property
-    def RESET(self) -> str:
-        return self.reset()
+class Ansi:
+    """Pre-built ANSI escape sequences for common operations."""
+
+    @staticmethod
+    def fg(rgb: str) -> str:
+        """Foreground color from RGB triplet (e.g., "166;227;161")."""
+        return f"\033[38;2;{rgb}m"
+
+    @staticmethod
+    def bg(rgb: str) -> str:
+        """Background color from RGB triplet (e.g., "166;227;161")."""
+        return f"\033[48;2;{rgb}m"
+
+    @staticmethod
+    def fg_bg(fg_rgb: str, bg_rgb: str) -> str:
+        """Combined FG + BG color from RGB triplets."""
+        return f"\033[38;2;{fg_rgb}m\033[48;2;{bg_rgb}m"
+
+    RESET_ALL = "\033[0m"
+
+    @classmethod
+    def reset(cls, bg_rgb: str = Theme.BG) -> str:
+        """Reset with optional background re-application."""
+        if bg_rgb:
+            return f"\033[0m\033[48;2;{bg_rgb}m"
+        return cls.RESET_ALL
+
+
+def colorize(text: str, rgb: str) -> str:
+    """Wrap text in foreground color using RGB triplet."""
+    return f"{Ansi.fg(rgb)}{text}{Ansi.RESET_ALL}"
 
 
 def status_color(status: str) -> str:
@@ -743,7 +733,7 @@ def _format_player_name(player: str) -> str:
 
 
 def header_row() -> str:
-    """"Header row with status, player name, and switch."""
+    """ "Header row with status, player name, and switch."""
     global s
 
     status_icon = icon(_status_icon(s.state.status))
@@ -752,11 +742,11 @@ def header_row() -> str:
 
     player_name = _format_player_name(s.state.player)
     player_name_w = visible_width(player_name)
-    
+
     has_switch = len(s.available_players) > 1
     switch_w = 9 if has_switch else 0
     max_name_visible = Config.INNER_W - status_w - switch_w - 2
-    
+
     if player_name_w > max_name_visible:
         # Truncate to fit, then adjust if we overshoot due to CJK boundary
         player_name = truncate(player_name, max_name_visible)
@@ -765,27 +755,30 @@ def header_row() -> str:
         if player_name_w > max_name_visible:
             player_name = truncate(player_name, max_name_visible - 1)
             player_name_w = visible_width(player_name)
-    
+
     if has_switch:
         player_slot_w = Config.INNER_W - status_w - 1 - 1 - switch_w  # -2 for both gaps
     else:
         player_slot_w = Config.INNER_W - status_w - 1
-    
+
     # Center player name in its slot
     extra_padding = (player_slot_w - player_name_w) // 2
     if extra_padding > 0:
         player_name = " " * extra_padding + player_name
-    
+
     # Colorize status
     status_colored = colorize(status_text, status_color(s.state.status))
-    switch_colored = colorize(icon('tab'), Theme.KEY_HINT) + " switch" if has_switch else ""
-    
+    switch_colored = (
+        colorize(icon("tab"), Theme.KEY_HINT) + " switch" if has_switch else ""
+    )
+
     # Use row() with fixed widths for consistent layout
     return row(
         (status_colored, status_w, "<"),
         (player_name, player_slot_w, "<"),
         (switch_colored, switch_w, ">") if has_switch else None,
     )
+
 
 def _info_row(label: str, value: str):
     """Info row: label (7) + value (remaining)."""
@@ -853,6 +846,7 @@ def _artist_row_slots(artist: str, shuffle: str, loop: str):
         (" ".join(sl_parts), sl_slot_w, ">"),
     ]
     return slots
+
 
 def _track_row_slots(title: str, track_number: str, track_count: int):
     """Build track row slots: label (7) + title (flex) + track num (dynamic).
@@ -930,7 +924,9 @@ def progress_row():
     """Progress row: time + bar + time."""
     global s
     start = format_time(s.state.position)  # elapsed time: MM:SS
-    end = format_time(s.state.length, is_length=True)  # total time: 'Live' if zero-length (streaming)
+    end = format_time(
+        s.state.length, is_length=True
+    )  # total time: 'Live' if zero-length (streaming)
     # Save time widths for volume row alignment
     s.state._start_time_w = len(start)
     s.state._end_time_w = len(end)
@@ -1078,7 +1074,7 @@ def row(*slots) -> str:
 
 def visible_width(text: str) -> int:
     """Calculate display width of text, accounting for wide chars (CJK, emoji).
-    
+
     Variation selectors (U+FE00-U+FE0F) are treated as zero width since they
     don't take up display space.
     """
@@ -1170,26 +1166,26 @@ def progress_bar(current: float, total: float, total_width: int) -> str:
 
 def volume_bar(volume: int, width: int) -> str:
     """Build VU-meter style volume bar with optimized ANSI.
-    
+
     Zones: green (0-50%), yellow (50-80%), red (80-100%)
     Transitions use half-block character (▒) with FG/BG color mixing.
     Empty section uses dimmed color for both FG and BG.
-    
+
     Optimization: Only emit ANSI sequences when color changes.
     """
     if volume == 0:
         # Muted: dimmed FG and BG - one sequence for whole bar
         return f"{Ansi.fg_bg(Theme.VOL_EMPTY, Theme.VOL_EMPTY)}{'░' * width}{Ansi.RESET_ALL}"
-    
+
     filled = min(int(volume * width // 100), width)
-    
+
     # Zone boundaries
-    green_zone_end = int(width * 0.50)   # exclusive
+    green_zone_end = int(width * 0.50)  # exclusive
     yellow_zone_end = int(width * 0.80)  # exclusive
-    
+
     result = []
     prev_ansi = None
-    
+
     def emit(char: str, ansi: str) -> None:
         """Emit character with ANSI sequence if different from previous."""
         nonlocal prev_ansi
@@ -1197,7 +1193,7 @@ def volume_bar(volume: int, width: int) -> str:
             result.append(ansi)
             prev_ansi = ansi
         result.append(char)
-    
+
     for i in range(width):
         if i < filled:
             # Determine zone and whether we're in transition
@@ -1221,7 +1217,7 @@ def volume_bar(volume: int, width: int) -> str:
         else:
             # Empty section - use VOL_EMPTY for both FG and BG
             emit("░", Ansi.fg_bg(Theme.VOL_EMPTY, Theme.VOL_EMPTY))
-    
+
     return "".join(result) + Ansi.RESET_ALL
 
 
@@ -1235,7 +1231,9 @@ def run_playerctl_async(*args) -> None:
     target_player = s.current_player
 
     def _exec():
-        _playerctl_subprocess(list(args), timeout=0.3, capture=False, player_override=target_player)
+        _playerctl_subprocess(
+            list(args), timeout=0.3, capture=False, player_override=target_player
+        )
 
     _playerctl_pool.submit(_exec)
 
@@ -1244,7 +1242,12 @@ def handle_key(key: str, seq: str = "") -> None:
     global s, shutdown_requested
 
     now = time.time()
-    if key != "q" and key != "Q" and key != "\x1b" and now - s.last_command_time < COMMAND_COOLDOWN:
+    if (
+        key != "q"
+        and key != "Q"
+        and key != "\x1b"
+        and now - s.last_command_time < COMMAND_COOLDOWN
+    ):
         return  # Ignore rapid repeats
     # Quit bypasses cooldown
     if key in {"q", "Q"} or (key == "\x1b" and not seq):
@@ -1273,7 +1276,9 @@ def handle_key(key: str, seq: str = "") -> None:
             s.state.volume = vol
         elif seq == "[C":
             # Seek forward: optimistic update
-            s.state.position = min(s.state.length, s.state.position + Config.SEEK_SECONDS)
+            s.state.position = min(
+                s.state.length, s.state.position + Config.SEEK_SECONDS
+            )
             run_playerctl_async("position", f"{Config.SEEK_SECONDS}+")
         elif seq == "[D":
             # Seek backward: optimistic update
@@ -1439,7 +1444,7 @@ def _extract_complete_metadata_blocks(data: str) -> List[str]:
     complete_blocks: List[str] = []
 
     # Find first \n@0@ (start of first potential block)
-    first_match = re.search(r'\n@0@', s._meta_buf)
+    first_match = re.search(r"\n@0@", s._meta_buf)
     if not first_match:
         # No block start, clear garbage if buffer is only whitespace
         if s._meta_buf.strip() == "":
@@ -1449,8 +1454,8 @@ def _extract_complete_metadata_blocks(data: str) -> List[str]:
     first_start = first_match.start()
 
     # Find second \n@0@ (marks start of second block = end of first complete block)
-    remaining_after_first = s._meta_buf[first_start + 4:]  # Skip past \n@0@
-    second_match = re.search(r'\n@0@', remaining_after_first)
+    remaining_after_first = s._meta_buf[first_start + 4 :]  # Skip past \n@0@
+    second_match = re.search(r"\n@0@", remaining_after_first)
 
     if not second_match:
         # Only one potential block
@@ -1477,20 +1482,20 @@ def _extract_complete_metadata_blocks(data: str) -> List[str]:
 
     # Now extract all complete blocks from remaining
     while True:
-        next_match = re.search(r'\n@0@', s._meta_buf)
+        next_match = re.search(r"\n@0@", s._meta_buf)
         if not next_match:
             break
 
         next_start = next_match.start()
-        remaining_after = s._meta_buf[next_start + 4:]  # Skip past \n@0@
-        next_next = re.search(r'\n@0@', remaining_after)
+        remaining_after = s._meta_buf[next_start + 4 :]  # Skip past \n@0@
+        next_next = re.search(r"\n@0@", remaining_after)
 
         if next_next:
             # Complete block
             block_end = next_start + 4 + next_next.start()
             block = s._meta_buf[next_start:block_end]
             complete_blocks.append(block)
-            s._meta_buf = remaining_after[next_next.start() + 4:]
+            s._meta_buf = remaining_after[next_next.start() + 4 :]
         else:
             # No more complete blocks - keep partial in buffer
             s._meta_buf = s._meta_buf[next_start:]
@@ -1593,7 +1598,9 @@ def main():
                     cleanup_proc(s.meta_proc)
                     s._meta_buf = ""  # Clear buffer when follower restarts
                     s._initial_state_shown = False  # Reset for new follower
-                    s.meta_proc = start_metadata_follower() if s.current_player else None
+                    s.meta_proc = (
+                        start_metadata_follower() if s.current_player else None
+                    )
 
             if stdin_fd is not None and stdin_fd in readable:
                 result = read_key(stdin_fd)
