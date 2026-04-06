@@ -94,5 +94,69 @@ class TestVolumeBarContent(unittest.TestCase):
         self.assertEqual(len(plain), 30)
 
 
+class TestVolumeBarAlignment(unittest.TestCase):
+    """Test that volume bar aligns with progress bar."""
+
+    def setUp(self):
+        self._orig_inner_w = tpc.Config.INNER_W
+        tpc.Config.INNER_W = 68
+
+    def tearDown(self):
+        tpc.Config.INNER_W = self._orig_inner_w
+
+    def test_volume_bar_matches_progress_bar_width(self):
+        """Volume bar and progress bar should have exactly the same width.
+        
+        This ensures the bars start and end at the same columns,
+        creating a clean visual alignment.
+        """
+        # Simulate a track with times like '24:38' and '31:27'
+        tpc.s.state._start_time_w = 5
+        tpc.s.state._end_time_w = 5
+        tpc.s.state.position = 1478  # 24:38
+        tpc.s.state.length = 1887  # 31:27
+        tpc.s.state.volume = 100
+
+        # Get the progress bar width (from progress_row)
+        start_w = tpc.s.state._start_time_w
+        end_w = tpc.s.state._end_time_w
+        progress_bar_w = tpc.Config.INNER_W - start_w - 1 - 1 - end_w
+
+        # Build progress bar
+        progress_bar = tpc.progress_bar(
+            tpc.s.state.position,
+            tpc.s.state.length,
+            progress_bar_w
+        )
+        progress_bar_visible = tpc.visible_width(progress_bar)
+
+        # Get the volume bar (from volume_row calculation)
+        vol_pct = tpc.s.state.volume
+        pct_text = f"{vol_pct}%"
+        vol_icon = f" {tpc.icon(tpc._volume_icon(vol_pct))} "
+        icon_w = tpc.visible_width(vol_icon)
+        bar_w = tpc.Config.INNER_W - icon_w - 1 - 1 - len(pct_text)
+        
+        # The row total needs to equal INNER_W
+        # icon + gap + bar + gap + pct = INNER_W
+        # bar_w should be adjusted so total matches
+        total_slots = icon_w + 1 + progress_bar_w + 1 + len(pct_text)
+        extra = tpc.Config.INNER_W - total_slots
+        # icon_w gets the extra space
+        icon_w += extra
+
+        volume_bar = tpc.volume_bar(vol_pct, progress_bar_w)
+        volume_bar_visible = tpc.visible_width(volume_bar)
+
+        # Both bars should have the same visible width
+        self.assertEqual(
+            progress_bar_visible,
+            volume_bar_visible,
+            f"Progress bar width ({progress_bar_visible}) != volume bar width ({volume_bar_visible})"
+        )
+        self.assertEqual(progress_bar_visible, progress_bar_w)
+        self.assertEqual(volume_bar_visible, progress_bar_w)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
