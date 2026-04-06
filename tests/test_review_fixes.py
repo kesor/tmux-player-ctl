@@ -1,16 +1,70 @@
 """Tests for code review fixes:
 - Bug #7: Missing minimum width clamping
 - Bug #11: Zero-length streams (live radio) display
+- Window resize handling (SIGWINCH)
 """
 
 import unittest
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 import importlib.util
 
 spec = importlib.util.spec_from_file_location("tpc", "../tmux-player-ctl.py")
 tpc = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(tpc)
+
+
+class TestWindowResize(unittest.TestCase):
+    """Window resize handling via SIGWINCH.
+    
+    When terminal window is resized, we need to:
+    1. Catch SIGWINCH signal
+    2. Redetect terminal width
+    3. Mark state as dirty to trigger redraw
+    """
+
+    def setUp(self):
+        self._orig_ui_width = tpc.Config.UI_WIDTH
+        self._orig_inner_w = tpc.Config.INNER_W
+        # Reset resize flag
+        tpc.resize_requested = False
+
+    def tearDown(self):
+        tpc.Config.UI_WIDTH = self._orig_ui_width
+        tpc.Config.INNER_W = self._orig_inner_w
+        tpc.resize_requested = False
+
+    def test_request_resize_sets_flag(self):
+        """SIGWINCH handler should set resize_requested = True."""
+        tpc.resize_requested = False
+        tpc.request_resize(None, None)
+        self.assertTrue(tpc.resize_requested)
+
+    def test_resize_updates_width(self):
+        """Handling resize should update Config.UI_WIDTH."""
+        tpc.Config.UI_WIDTH = 72
+        tpc.Config.INNER_W = 68
+        
+        # Simulate resize to smaller terminal
+        with patch.object(tpc, 'detect_terminal_width', return_value=50):
+            tpc.detect_and_apply_terminal_width()
+        
+        self.assertEqual(tpc.Config.UI_WIDTH, 50)
+        self.assertEqual(tpc.Config.INNER_W, 46)
+
+    def test_resize_clamps_to_max(self):
+        """Resize beyond 72 should clamp to 72."""
+        with patch.object(tpc, 'detect_terminal_width', return_value=100):
+            tpc.detect_and_apply_terminal_width()
+        
+        self.assertEqual(tpc.Config.UI_WIDTH, 72)
+
+    def test_resize_clamps_to_min(self):
+        """Resize below 28 should clamp to 28."""
+        with patch.object(tpc, 'detect_terminal_width', return_value=20):
+            tpc.detect_and_apply_terminal_width()
+        
+        self.assertEqual(tpc.Config.UI_WIDTH, 28)
 
 
 class TestMinWidthClamping(unittest.TestCase):

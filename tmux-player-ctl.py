@@ -310,11 +310,17 @@ COMMAND_COOLDOWN = 0.05  # Minimum time between async calls
 # ─────────────────────────────────────────────────────────────────────────────
 
 shutdown_requested = False
+resize_requested = False
 
 
 def request_shutdown(signum, frame=None):
     global shutdown_requested
     shutdown_requested = True
+
+
+def request_resize(signum, frame=None):
+    global resize_requested
+    resize_requested = True
 
 
 def setup_signals():
@@ -324,6 +330,8 @@ def setup_signals():
         signal.signal(signal.SIGHUP, request_shutdown)
     if hasattr(signal, "SIGQUIT"):
         signal.signal(signal.SIGQUIT, request_shutdown)
+    if hasattr(signal, "SIGWINCH"):
+        signal.signal(signal.SIGWINCH, request_resize)
     atexit.register(cleanup)
 
 
@@ -1558,6 +1566,13 @@ def main():
             return fds
 
         while not shutdown_requested:
+            # Handle window resize
+            global resize_requested
+            if resize_requested:
+                resize_requested = False
+                detect_and_apply_terminal_width()
+                s.state.dirty = True
+
             fds = build_select_list()
             if not fds:
                 time.sleep(0.1)
