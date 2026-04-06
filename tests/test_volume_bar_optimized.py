@@ -24,12 +24,12 @@ class TestVolumeBarSequenceCount(unittest.TestCase):
         """Full volume (100%) should emit minimal ANSI sequences."""
         result = tpc.volume_bar(100, 50)
         sequences = re.findall(r"\x1b\[[0-9;]+m", result)
-        # Optimized: 8 sequences max (green, yellow+BG, yellow, red+BG, red, reset)
+        # Optimized: 9 sequences max (green, yellow+BG, yellow, red+BG, red, reset + BG restore)
         # Before optimization: 53 sequences
         self.assertLessEqual(
             len(sequences),
-            8,
-            f"Too many ANSI sequences: {len(sequences)}. Should be <= 8.",
+            9,
+            f"Too many ANSI sequences: {len(sequences)}. Should be <= 9.",
         )
 
     def test_half_volume_has_few_sequences(self):
@@ -57,11 +57,13 @@ class TestVolumeBarSequenceCount(unittest.TestCase):
         )
 
     def test_zero_volume_has_minimal_sequences(self):
-        """Volume 0% should emit minimal sequences (FG + BG + reset = 3)."""
+        """Volume 0% should emit minimal sequences."""
         result = tpc.volume_bar(0, 50)
         sequences = re.findall(r"\x1b\[[0-9;]+m", result)
-        # 3 sequences: FG color, BG color, reset
-        self.assertEqual(len(sequences), 3, f"Expected 3 sequences: {len(sequences)}")
+        # If Theme.BG is set: 4 sequences (FG, BG, reset, BG restore)
+        # Otherwise: 3 sequences (FG, BG, reset)
+        expected = 4 if tpc.Theme.BG else 3
+        self.assertEqual(len(sequences), expected, f"Expected {expected} sequences: {len(sequences)}")
 
     def test_wide_bar_still_has_few_sequences(self):
         """Wide bar (68 chars) should still have few sequences."""

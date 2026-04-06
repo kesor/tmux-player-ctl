@@ -320,7 +320,14 @@ class TestColorize(unittest.TestCase):
     def test_colorize_wraps_content_with_color(self):
         """colorize wraps content with FG ANSI from RGB triplet."""
         result = tpc.colorize("hello", "0;196;0")  # RGB for green
-        self.assertEqual(result, "\x1b[38;2;0;196;0mhello\x1b[0m")
+        # Should start with FG color and end with reset
+        self.assertTrue(result.startswith("\x1b[38;2;0;196;0mhello"))
+        self.assertIn("\x1b[0m", result)
+        # If Theme.BG is set, should end with BG restore; otherwise just RESET_ALL
+        if tpc.Theme.BG:
+            self.assertTrue(result.endswith(f"\x1b[0m\x1b[48;2;{tpc.Theme.BG}m"))
+        else:
+            self.assertEqual(result, f"\x1b[38;2;0;196;0mhello\x1b[0m")
 
 
 class TestIcon(unittest.TestCase):

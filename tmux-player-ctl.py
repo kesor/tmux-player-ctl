@@ -675,8 +675,10 @@ class Ansi:
     RESET_ALL = "\033[0m"
 
     @classmethod
-    def reset(cls, bg_rgb: str = Theme.BG) -> str:
+    def reset(cls, bg_rgb: str = None) -> str:
         """Reset with optional background re-application."""
+        if bg_rgb is None:
+            bg_rgb = Theme.BG
         if bg_rgb:
             return f"\033[0m\033[48;2;{bg_rgb}m"
         return cls.RESET_ALL
@@ -684,7 +686,7 @@ class Ansi:
 
 def colorize(text: str, rgb: str) -> str:
     """Wrap text in foreground color using RGB triplet."""
-    return f"{Ansi.fg(rgb)}{text}{Ansi.RESET_ALL}"
+    return f"{Ansi.fg(rgb)}{text}{Ansi.reset()}"
 
 
 def status_color(status: str) -> str:
@@ -705,17 +707,17 @@ def status_color(status: str) -> str:
 
 def border_top() -> str:
     """Top border: ┌ followed by ─ repeated, then ┐"""
-    return f"{Ansi.fg(Theme.BORDER)}┌{'─' * (Config.UI_WIDTH - 2)}┐{Ansi.RESET_ALL}"
+    return f"{Ansi.reset()}{Ansi.fg(Theme.BORDER)}┌{'─' * (Config.UI_WIDTH - 2)}┐{Ansi.reset()}"
 
 
 def border_mid() -> str:
     """Middle border: ├ followed by ─ repeated, then ┤"""
-    return f"{Ansi.fg(Theme.BORDER)}├{'─' * (Config.UI_WIDTH - 2)}┤{Ansi.RESET_ALL}"
+    return f"{Ansi.reset()}{Ansi.fg(Theme.BORDER)}├{'─' * (Config.UI_WIDTH - 2)}┤{Ansi.reset()}"
 
 
 def border_bot() -> str:
     """Bottom border: └ followed by ─ repeated, then ┘"""
-    return f"{Ansi.fg(Theme.BORDER)}└{'─' * (Config.UI_WIDTH - 2)}┘{Ansi.RESET_ALL}"
+    return f"{Ansi.reset()}{Ansi.fg(Theme.BORDER)}└{'─' * (Config.UI_WIDTH - 2)}┘{Ansi.reset()}"
 
 
 def _status_icon(status: str) -> str:
@@ -1069,7 +1071,7 @@ def row(*slots) -> str:
         parts.append(pad_visible(content, width, align))
     content_str = " ".join(parts)
 
-    return f"{Ansi.fg(Theme.BORDER)}│{Ansi.RESET_ALL} {content_str} {Ansi.fg(Theme.BORDER)}│{Ansi.RESET_ALL}"
+    return f"{Ansi.reset()}{Ansi.fg(Theme.BORDER)}│{Ansi.reset()} {content_str} {Ansi.fg(Theme.BORDER)}│{Ansi.reset()}"
 
 
 def visible_width(text: str) -> int:
@@ -1160,7 +1162,7 @@ def progress_bar(current: float, total: float, total_width: int) -> str:
         + "\u25cf"
         + Ansi.fg(Theme.PROGRESS_EMPTY)
         + "━" * empty_w
-        + Ansi.RESET_ALL
+        + Ansi.reset()
     )
 
 
@@ -1175,7 +1177,9 @@ def volume_bar(volume: int, width: int) -> str:
     """
     if volume == 0:
         # Muted: dimmed FG and BG - one sequence for whole bar
-        return f"{Ansi.fg_bg(Theme.VOL_EMPTY, Theme.VOL_EMPTY)}{'░' * width}{Ansi.RESET_ALL}"
+        return (
+            f"{Ansi.fg_bg(Theme.VOL_EMPTY, Theme.VOL_EMPTY)}{'░' * width}{Ansi.reset()}"
+        )
 
     filled = min(int(volume * width // 100), width)
 
@@ -1218,7 +1222,7 @@ def volume_bar(volume: int, width: int) -> str:
             # Empty section - use VOL_EMPTY for both FG and BG
             emit("░", Ansi.fg_bg(Theme.VOL_EMPTY, Theme.VOL_EMPTY))
 
-    return "".join(result) + Ansi.RESET_ALL
+    return "".join(result) + Ansi.reset()
 
 
 def run_playerctl_async(*args) -> None:

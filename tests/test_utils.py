@@ -1,6 +1,7 @@
 """Utility function tests: status_color, format_player_name, player_args, playerctl subprocess, quit keys, get_best_player, reset_state."""
 
 import unittest
+import os
 from unittest.mock import patch, MagicMock
 
 import importlib.util
@@ -89,8 +90,10 @@ class TestThemeBG(unittest.TestCase):
         self.assertTrue(hasattr(tpc.Theme, "BG"))
 
     def test_theme_bg_default_empty(self):
-        """Theme.BG default is empty string."""
-        self.assertEqual(tpc.Theme.BG, "")
+        """Theme.BG is either empty or from TPCTL_BG env var."""
+        # Theme.BG is read at import time from TPCTL_BG environment variable
+        expected = os.environ.get("TPCTL_BG", "")
+        self.assertEqual(tpc.Theme.BG, expected)
 
 
 class TestPlayerctlSubprocess(unittest.TestCase):

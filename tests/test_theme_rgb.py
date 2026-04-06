@@ -116,9 +116,17 @@ class TestColorizeWorks(unittest.TestCase):
             result.startswith("\033[38;2;"),
             f"Should start with FG ANSI: {repr(result)}",
         )
-        self.assertTrue(
-            result.endswith(f"test\033[0m"), f"Should end with RESET: {repr(result)}"
-        )
+        # Should end with RESET; if BG is set, also BG restore
+        if tpc.Theme.BG:
+            self.assertTrue(
+                result.endswith(f"\033[0m\033[48;2;{tpc.Theme.BG}m"),
+                f"Should end with RESET + BG restore: {repr(result)}",
+            )
+        else:
+            self.assertTrue(
+                result.endswith("\033[0m"),
+                f"Should end with RESET: {repr(result)}",
+            )
 
 
 class TestVolumeBarStillWorks(unittest.TestCase):
