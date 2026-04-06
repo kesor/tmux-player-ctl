@@ -990,23 +990,15 @@ def volume_row():
     global s
     vol_pct = s.state.volume  # already int 0-100
     pct_text = f"{vol_pct}%"
-    vol_icon = f" {icon(_volume_icon(vol_pct))} "
-    # Use same bar width as progress row for alignment
+    vol_icon = f"{icon(_volume_icon(vol_pct))} "
     start_w = s.state._start_time_w or 0
     end_w = s.state._end_time_w or 0
-    bar_w = Config.INNER_W - start_w - 1 - 1 - end_w  # Same as progress_row
+    bar_w = Config.INNER_W - start_w - end_w - 2
     bar = volume_bar(vol_pct, max(0, bar_w))
-    # Slots: icon | bar | pct with 1-char gaps
-    # Total content visible = INNER_W = 68
-    # icon slot = INNER_W - bar_w - len(pct_text) - 2 gaps
-    icon_slot_w = Config.INNER_W - bar_w - len(pct_text) - 2
-    # But emoji 🔊 is 2 columns wide, while progress time ' 24:38 ' is 6 cols
-    # vol_icon ' 🔊 ' is only 4 cols, so add 2 to match progress's slot
-    icon_slot_w += 2
     return row(
-        (vol_icon, max(icon_slot_w, 1), "<"),
+        (vol_icon, max(start_w, 2), "<"),
         (bar, max(0, bar_w), "^"),
-        (pct_text, len(pct_text), ">"),
+        (pct_text, end_w, ">"),
     )
 
 
