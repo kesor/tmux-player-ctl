@@ -1571,6 +1571,7 @@ def main():
             if resize_requested:
                 resize_requested = False
                 detect_and_apply_terminal_width()
+                clear_screen()  # Clear any leftover content in expanded area
                 s.state.dirty = True
 
             fds = build_select_list()
