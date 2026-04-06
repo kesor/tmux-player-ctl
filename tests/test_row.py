@@ -327,7 +327,7 @@ class TestColorize(unittest.TestCase):
         if tpc.Theme.BG:
             self.assertTrue(result.endswith(f"\x1b[0m\x1b[48;2;{tpc.Theme.BG}m"))
         else:
-            self.assertEqual(result, f"\x1b[38;2;0;196;0mhello\x1b[0m")
+            self.assertEqual(result, "\x1b[38;2;0;196;0mhello\x1b[0m")
 
 
 class TestIcon(unittest.TestCase):

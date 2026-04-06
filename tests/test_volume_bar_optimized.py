@@ -63,7 +63,9 @@ class TestVolumeBarSequenceCount(unittest.TestCase):
         # If Theme.BG is set: 4 sequences (FG, BG, reset, BG restore)
         # Otherwise: 3 sequences (FG, BG, reset)
         expected = 4 if tpc.Theme.BG else 3
-        self.assertEqual(len(sequences), expected, f"Expected {expected} sequences: {len(sequences)}")
+        self.assertEqual(
+            len(sequences), expected, f"Expected {expected} sequences: {len(sequences)}"
+        )
 
     def test_wide_bar_still_has_few_sequences(self):
         """Wide bar (68 chars) should still have few sequences."""

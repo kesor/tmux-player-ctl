@@ -7,7 +7,6 @@ Strategy:
 """
 
 import unittest
-from unittest.mock import patch, MagicMock
 
 import importlib.util
 

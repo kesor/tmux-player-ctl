@@ -2,13 +2,8 @@
 import unicodedata
 
 """
-tmux-player-ctl - A tmux popup controller for MPRIS media players via playerctl.
-
-Usage:
-    tmux display-popup -x0 -y0 -w100% -h100% -E "python3 /path/to/tmux-player-ctl.py"
+tmux-player-ctl - A controller for MPRIS media players via playerctl.
 """
-
-from concurrent.futures import ThreadPoolExecutor
 
 import os
 import sys
@@ -19,9 +14,10 @@ import select
 import time
 import re
 import shutil
+
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from typing import Optional, List
-
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Configuration
@@ -59,8 +55,7 @@ def detect_terminal_width() -> int:
 def detect_and_apply_terminal_width():
     """Detect terminal width and clamp Config.UI_WIDTH to max 72, min 28."""
     terminal_width = detect_terminal_width()
-    # Clamp: minimum 28 for valid UI, maximum 72
-    Config.UI_WIDTH = max(28, min(72, terminal_width))
+    Config.UI_WIDTH = max(28, terminal_width)
     Config.INNER_W = Config.UI_WIDTH - 4
 
 
@@ -345,7 +340,6 @@ def cleanup_proc(proc: Optional[subprocess.Popen]) -> None:
 
 def render_ui():
     """Render the full UI to stdout."""
-    global s
     # Build all rows
     rows = [
         border_top(),
@@ -402,7 +396,6 @@ def get_best_player(players: List[str]) -> Optional[str]:
     """Select best player: Playing > Paused > first available."""
     if not players:
         return None
-    global s
     for player in players:
         prev, s.current_player = s.current_player, player
         status = run_playerctl("status")
@@ -443,20 +436,17 @@ def _playerctl_subprocess(
 
 
 def player_args() -> List[str]:
-    global s
     return ["-p", s.current_player] if s.current_player else []
 
 
 def reset_state():
     """Reset all state fields with a fresh PlayerState."""
-    global s
     s.state = PlayerState()
     s.state.status = "No player"  # Override default "" with explicit no-player message
 
 
 def switch_player() -> Optional[subprocess.Popen]:
     """Switch to next player. Returns new metadata follower process."""
-    global s
 
     cleanup_proc(s.meta_proc)
 
@@ -736,7 +726,6 @@ def _format_player_name(player: str) -> str:
 
 def header_row() -> str:
     """ "Header row with status, player name, and switch."""
-    global s
 
     status_icon = icon(_status_icon(s.state.status))
     status_text = f"{status_icon} {s.state.status.lower()}"
@@ -895,13 +884,11 @@ def _track_row_slots(title: str, track_number: str, track_count: int):
 
 
 def album_row():
-    global s
     return _info_row("Album:", s.state.album)
 
 
 def track_row():
     """Track row: label + title + track number info."""
-    global s
     # Build track row with optional track number display
     slots = _track_row_slots(
         s.state.title,
@@ -913,7 +900,6 @@ def track_row():
 
 def artist_row():
     """Artist row: label + artist name + shuffle/loop indicators."""
-    global s
     slots = _artist_row_slots(
         s.state.artist,
         s.state.shuffle,
@@ -924,7 +910,6 @@ def artist_row():
 
 def progress_row():
     """Progress row: time + bar + time."""
-    global s
     start = format_time(s.state.position)  # elapsed time: MM:SS
     end = format_time(
         s.state.length, is_length=True
@@ -956,7 +941,6 @@ def _volume_icon(vol: int) -> str:
 
 def toolbar_row():
     """Toolbar with controls."""
-    global s
 
     # Build each tool
     seek = f"{colorize(icon('seek'), Theme.KEY_HINT)} seek"  # 7
@@ -985,7 +969,6 @@ def toolbar_row():
 
 def volume_row():
     """Volume row: icon + bar + percentage."""
-    global s
     vol_pct = s.state.volume  # already int 0-100
     pct_text = f"{vol_pct}%"
     vol_icon = f"{icon(_volume_icon(vol_pct))} "
@@ -1002,7 +985,6 @@ def volume_row():
 
 def update_state_from_metadata(data: dict):
     """Update state from parsed metadata dict."""
-    global s
 
     # Debounce: skip if update came too soon after our optimistic update
     if time.time() - s.last_command_time < COMMAND_DEBOUNCE:
@@ -1024,7 +1006,6 @@ def update_state_from_metadata(data: dict):
 
 
 def clear_screen():
-    global s
     sys.stdout.write("\033[2J\033[H")
     if Theme.BG:
         sys.stdout.write(f"\033[48;2;{Theme.BG}m")
@@ -1437,7 +1418,6 @@ def _extract_complete_metadata_blocks(data: str) -> List[str]:
     - First block: extract immediately for fast initial display
     - Subsequent blocks: wait for 2 complete blocks (conservative)
     """
-    global s
 
     # Check if this is the first data (buffer was empty)
     was_empty = s._meta_buf == ""
@@ -1523,7 +1503,6 @@ def read_metadata_from_follower(raw: str) -> None:
 
 
 def main():
-    global s
 
     check_playerctl()  # Exit early if playerctl not available
     setup_signals()
